@@ -171,6 +171,7 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
         # timeout for the Read or/and write process in s
         self._RWTimeout = 10
 
+        self._counting_edge_default = True
         self._clock_frequency_default = 100             # in Hz
         self._scanner_clock_frequency_default = 100     # in Hz
         # number of readout samples, mainly used for gated counter
