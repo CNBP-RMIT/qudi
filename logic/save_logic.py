@@ -27,6 +27,7 @@ import sys
 import inspect
 import time
 import numpy as np
+from qtpy.QtWidgets import QFileDialog
 
 from logic.generic_logic import GenericLogic
 from core.util.mutex import Mutex
@@ -193,6 +194,20 @@ class SaveLogic(GenericLogic):
                     'to default setting: False.')
             self.log_into_daily_directory = False
         self._daily_loghandler = None
+
+        if 'save_into_default_directory' in config.keys():
+            if not isinstance(config['save_into_default_directory'], bool):
+                self.log.warning('default saving condition entry in '
+                                 'configuration is not a boolean. Falling back'
+                                 ' to default setting: True.')
+                self.save_into_default_directory = True
+            else:
+                self.save_into_default_directory = config[
+                    'save_into_default_directory']
+        else:
+            self.log.warning('Configuration has no default saving condition. '
+                             'Falling back to default setting: True')
+            self.save_into_default_directory = True
 
         # checking for the right configuration
         for key in config.keys():
@@ -367,6 +382,23 @@ class SaveLogic(GenericLogic):
         except:
             # Sometimes it is not possible to get the object which called the save_data function (such as when calling this from the console).
             module_name = 'NaN'
+
+        # Open the system dialog to save the data into a specific path and
+        # filename based on the setting from the config file
+        if not self.save_into_default_directory:
+            # Avoid dialog opening if it is called from the console
+            if not module_name == 'NaN':
+                new_filepath = QFileDialog.getSaveFileName(
+                    None, str("Save data"), self.data_dir, str("Data files (*.dat)"))
+                if not new_filepath:
+                    self.log.warning('Saving aborted because no file was '
+                                     'specified. Please save your data again.')
+                    return -1
+                else:
+                    (filepath, filename) = os.path.split(new_filepath)
+                    # Remember the saving folder as the default one next time
+                    # something else is saved
+                    self.data_dir = filepath
 
         # check whether the given directory path does exist. If not, the
         # file will be saved anyway in the unspecified directory.

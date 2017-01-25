@@ -812,7 +812,7 @@ class ConfocalLogic(GenericLogic):
             self.stop_scanning()
             self.signal_scan_lines_next.emit()
 
-    def save_xy_data(self, colorscale_range=None, percentile_range=None):
+    def save_xy_data(self, colorscale_range=None, percentile_range=None, save_raw_data=True):
         """ Save the current confocal xy data to file.
 
         Two files are created.  The first is the imagedata, which has a text-matrix of count values
@@ -874,7 +874,7 @@ class ConfocalLogic(GenericLogic):
                                )
 
         # Save the image data and figure
-        filelabel = 'confocal_xy_image'
+        filelabel = 'confocal_xy_data'
         self._save_logic.save_data(image_data,
                                    filepath,
                                    parameters=parameters,
@@ -905,16 +905,25 @@ class ConfocalLogic(GenericLogic):
         data['z values (micron)'] = z_data
         data['count values (c/s)'] = counts_data
 
-        # Save the raw data to file
-        filelabel = 'confocal_xy_data'
-        self._save_logic.save_data(data,
-                                   filepath,
-                                   parameters=parameters,
-                                   filelabel=filelabel,
-                                   as_text=True,
-                                   timestamp=save_time
-                                   )
-        #, as_xml=False, precision=None, delimiter=None)
+        # Save the raw data to file altogether with the pixel confocal map
+        if save_raw_data:
+            filelabel = filelabel + '_raw'
+            fig, ax = plt.subplots()
+            ax.imshow(figure_data,
+                      cmap=plt.get_cmap('inferno'),
+                      interpolation='none')
+            ax.axis('off')
+            ax.xaxis.set_major_locator(plt.NullLocator())
+            ax.yaxis.set_major_locator(plt.NullLocator())
+            self._save_logic.save_data(data,
+                                       filepath,
+                                       parameters=parameters,
+                                       filelabel=filelabel,
+                                       as_text=True,
+                                       timestamp=save_time,
+                                       plotfig=fig
+                                       )
+            #, as_xml=False, precision=None, delimiter=None)
 
         self.log.debug('Confocal Image saved to:\n{0}'.format(filepath))
         self.signal_xy_data_saved.emit()
