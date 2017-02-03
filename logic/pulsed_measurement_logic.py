@@ -326,9 +326,15 @@ class PulsedMeasurementLogic(GenericLogic):
     # Fast counter control methods
     ############################################################################
     def configure_fast_counter(self):
-        """ Configure the fast counter and updates the actually set values in
-            the class variables.
         """
+        Configure the fast counter and updates the actually set values in the class variables.
+        """
+        # Check if fast counter is running and do nothing if that is the case
+        if self.fast_counter_status is None:
+            self.fast_counter_status = self._fast_counter_device.get_status()
+        if self.fast_counter_status >= 2 or self.fast_counter_status < 0:
+            return self.fast_counter_binwidth, self.fast_counter_record_length, self.number_of_lasers
+
         if self.fast_counter_gated:
             number_of_gates = self.number_of_lasers
         else:
@@ -497,6 +503,11 @@ class PulsedMeasurementLogic(GenericLogic):
         @param use_interleave:
         @return:
         """
+        # Check if pulser is already running and do nothing if that is the case.
+        pg_status, status_dict = self._pulse_generator_device.get_status()
+        if pg_status > 0:
+            return self.sample_rate, self.current_channel_config_name, self.analogue_amplitude, self.interleave_on
+
         # get hardware constraints
         pulser_constraints = self.get_pulser_constraints()
 
@@ -508,9 +519,9 @@ class PulsedMeasurementLogic(GenericLogic):
         # check and set sample rate
         samplerate_constr = pulser_constraints['sample_rate']
         if sample_rate_Hz > samplerate_constr['max'] or sample_rate_Hz < samplerate_constr['min']:
-            self.log.error('Desired sample rate of {0:.0e} Hz not within pulse generator '
-                           'constraints. Setting {1:.0e} Hz instead.'
-                           ''.format(sample_rate_Hz, samplerate_constr['max']))
+            self.log.warning('Desired sample rate of {0:.0e} Hz not within pulse generator '
+                             'constraints. Setting {1:.0e} Hz instead.'
+                             ''.format(sample_rate_Hz, samplerate_constr['max']))
             sample_rate_Hz = samplerate_constr['max']
         self.sample_rate = self._pulse_generator_device.set_sample_rate(sample_rate_Hz)
 
@@ -518,17 +529,17 @@ class PulsedMeasurementLogic(GenericLogic):
         config_constr = pulser_constraints['activation_config']
         if activation_config_name not in config_constr:
             new_config_name = list(config_constr.keys())[0]
-            self.log.error('Desired activation config "{0}" is no part of the pulse generator '
-                           'constraints. Using "{1}" instead.'
-                           ''.format(activation_config_name, new_config_name))
+            self.log.warning('Desired activation config "{0}" is no part of the pulse generator '
+                             'constraints. Using "{1}" instead.'
+                             ''.format(activation_config_name, new_config_name))
             activation_config_name = new_config_name
         activation_config = config_constr[activation_config_name]
         if self.interleave_on:
             analog_channels_to_activate = [chnl for chnl in activation_config if 'a_ch' in chnl]
             if len(analog_channels_to_activate) != 1:
                 self.log.warning('When interleave mode is used only one analog channel can be '
-                                 'active in pulse generator. Falling back to an allowed activation '
-                                 'config.')
+                                 'active in pulse generator. Falling back to an allowed activation'
+                                 ' config.')
         channel_activation = self.get_active_channels()
         for chnl in channel_activation:
             if chnl in activation_config:
@@ -603,20 +614,6 @@ class PulsedMeasurementLogic(GenericLogic):
         self.sigUploadedAssetsUpdated.emit(uploaded_assets)
         return err
 
-    def upload_sequence(self, seq_name):
-        """ Upload a sequence and all its related files
-
-        @param str seq_name: name of the sequence to be uploaded
-        """
-        current_sequence = self.get_pulse_sequence(seq_name)
-
-        for ensemble_name in current_sequence.get_sampled_ensembles():
-            self._pulse_generator_device.upload_asset(ensemble_name)
-        err = self._pulse_generator_device.upload_asset(seq_name)
-        uploaded_assets = self._pulse_generator_device.get_uploaded_asset_names()
-        self.sigUploadedAssetsUpdated.emit(uploaded_assets)
-        return err
-
     def has_sequence_mode(self):
         """ Retrieve from the hardware, whether sequence mode is present or not.
 
@@ -648,6 +645,34 @@ class PulsedMeasurementLogic(GenericLogic):
         # set the loaded_asset_name variable.
         self.loaded_asset_name = self._pulse_generator_device.get_loaded_asset()
         self.sigLoadedAssetUpdated.emit(self.loaded_asset_name)
+        return err
+
+    def direct_write_ensemble(self, ensemble_name, analog_samples, digital_samples):
+        """
+
+        @param ensemble_name:
+        @param analog_samples:
+        @param digital_samples:
+        @return:
+        """
+        err = self._pulse_generator_device.direct_write_ensemble(ensemble_name,
+                                                                 analog_samples, digital_samples)
+        uploaded_assets = self._pulse_generator_device.get_uploaded_asset_names()
+        self.sigUploadAssetComplete.emit(ensemble_name)
+        self.sigUploadedAssetsUpdated.emit(uploaded_assets)
+        return err
+
+    def direct_write_sequence(self, sequence_name, sequence_params):
+        """
+
+        @param sequence_name:
+        @param sequence_params:
+        @return:
+        """
+        err = self._pulse_generator_device.direct_write_sequence(sequence_name, sequence_params)
+        uploaded_assets = self._pulse_generator_device.get_uploaded_asset_names()
+        self.sigUploadAssetComplete.emit(sequence_name)
+        self.sigUploadedAssetsUpdated.emit(uploaded_assets)
         return err
 
     ############################################################################
@@ -748,16 +773,25 @@ class PulsedMeasurementLogic(GenericLogic):
 
                 # get raw data from fast counter
                 fc_data = netobtain(self._fast_counter_device.get_data_trace())
-                if np.sum(fc_data) < 1.0:
-                    self.log.warning('Only zeros received from fast counter!')
 
                 # add old raw data from previous measurements if necessary
                 if self.recalled_raw_data is not None:
                     self.log.info('Found old saved raw data. Sum of timebins: {0}'
                                   ''.format(np.sum(self.recalled_raw_data)))
-                    if self.recalled_raw_data.shape == fc_data.shape:
-                        self.log.info('Raw data has same shape as current data.')
+                    if np.sum(fc_data) < 1.0:
+                        self.log.warning('Only zeros received from fast counter!\n'
+                                         'Only using old raw data.')
+                        self.raw_data = self.recalled_raw_data
+                    elif self.recalled_raw_data.shape == fc_data.shape:
+                        self.log.debug('Saved raw data has same shape as current data.')
                         self.raw_data = self.recalled_raw_data + fc_data
+                    else:
+                        self.log.warning('Saved raw data has not the same shape as current data.\n'
+                                         'Did NOT add old raw data to current timetrace.')
+                        self.raw_data = fc_data
+                elif np.sum(fc_data) < 1.0:
+                    self.log.warning('Only zeros received from fast counter!')
+                    self.raw_data = np.zeros(fc_data.shape, dtype=int)
                 else:
                     self.raw_data = fc_data
 
@@ -769,10 +803,18 @@ class PulsedMeasurementLogic(GenericLogic):
                     self.laser_data = self._pulse_extraction_logic.ungated_extraction(self.raw_data,
                                                                                       self.conv_std_dev,
                                                                                       self.number_of_lasers)
-                # analyze pulses and get data points for signal plot
-                tmp_signal, tmp_error = self._pulse_analysis_logic.analyze_data(self.laser_data,
-                                                                                norm_start, norm_end,
-                                                                                sig_start, sig_end)
+
+                # analyze pulses and get data points for signal plot. Also check if extraction
+                # worked (non-zero array returned).
+                if np.sum(self.laser_data) < 1:
+                    tmp_signal = np.zeros(self.laser_data.shape[0])
+                    tmp_error = np.zeros(self.laser_data.shape[0])
+                else:
+                    tmp_signal, tmp_error = self._pulse_analysis_logic.analyze_data(self.laser_data,
+                                                                                    norm_start,
+                                                                                    norm_end,
+                                                                                    sig_start,
+                                                                                    sig_end)
                 # exclude laser pulses to ignore
                 if len(self.laser_ignore_list) > 0:
                     ignore_indices = self.laser_ignore_list
@@ -974,7 +1016,7 @@ class PulsedMeasurementLogic(GenericLogic):
         self.sigLaserDataUpdated.emit(self.laser_plot_x, self.laser_plot_y)
         return
 
-    def save_measurement_data(self, tag=None):
+    def save_measurement_data(self, controlled_val_unit='a.u.', tag=None):
         #####################################################################
         ####                Save extracted laser pulses                  ####
         #####################################################################
@@ -1011,12 +1053,12 @@ class PulsedMeasurementLogic(GenericLogic):
             data_array[0, :] = self.signal_plot_x
             data_array[1, :] = self.signal_plot_y
             data_array[2, :] = self.signal_plot_y2
-            data['Tau (s), Signal (norm.), Signal2 (norm.)'] = data_array.transpose()
+            data['Controlled variable (' + controlled_val_unit + '), Signal (norm.), Signal2 (norm.)'] = data_array.transpose()
         else:
             data_array = np.zeros([2, len(self.signal_plot_x)], dtype=float)
             data_array[0, :] = self.signal_plot_x
             data_array[1, :] = self.signal_plot_y
-            data['Tau (s), Signal (norm.)'] = data_array.transpose()
+            data['Controlled variable (' + controlled_val_unit + '), Signal (norm.)'] = data_array.transpose()
 
         # write the parameters:
         parameters = OrderedDict()
@@ -1033,7 +1075,7 @@ class PulsedMeasurementLogic(GenericLogic):
         ax1.plot(self.signal_plot_x, self.signal_plot_y)
         if self.alternating:
             ax1.plot(self.signal_plot_x, self.signal_plot_y2)
-        ax1.set_xlabel('x-axis')
+        ax1.set_xlabel('controlled variable (' + controlled_val_unit + ')')
         ax1.set_ylabel('norm. sig (a.u.)')
         # ax1.set_xlim(self.plot_domain)
         # ax1.set_ylim(self.plot_range)
