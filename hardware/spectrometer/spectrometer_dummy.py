@@ -29,24 +29,40 @@ import numpy as np
 
 
 class SpectrometerInterfaceDummy(Base,SpectrometerInterface):
-    _in = {'fitlogic': 'FitLogic'}
-    _out = {'spec': 'SpectrometerInterface'}
+    """ Dummy spectrometer module.
+
+        Shows a silicon vacancy spectrum at liquid helium temperatures.
+    """
+
+    _connectors = {'fitlogic': 'FitLogic'}
 
     def on_activate(self, e):
-        self._fitLogic = self.get_in_connector('fitlogic')
+        """ Activate module.
+
+            @param object e: fysom state transition information
+        """
+        self._fitLogic = self.get_connector('fitlogic')
         self.exposure = 0.1
 
     def on_deactivate(self, e):
+        """ Deactivate module.
+
+            @param object e: fysom state transition information
+        """
         pass
 
-    def recordSpectrum(self,):
+    def recordSpectrum(self):
+        """ Record a dummy spectrum.
+
+            @return ndarray: 1024-value ndarray containing wavelength and intensity of simulated spectrum
+        """
         length = 1024
 
         data = np.empty((2, length), dtype=np.double)
         data[0] = np.arange(730, 750, 20/length)
         data[1] = np.random.uniform(0, 2000, length)
 
-        lorentz, params = self._fitLogic.make_multiplelorentzoffset_model(no_of_functions=4)
+        lorentz, params = self._fitLogic.make_multiplelorentzian_model(no_of_functions=4)
         sigma = 0.05
         params.add('l0_amplitude', value=2000)
         params.add('l0_center', value=736.46)
@@ -68,11 +84,24 @@ class SpectrometerInterfaceDummy(Base,SpectrometerInterface):
         return data
 
     def saveSpectrum(self, path, postfix = ''):
+        """ Dummy save function.
+        
+            @param str path: path of saved spectrum
+            @param str postfix: postfix of saved spectrum file
+        """
         timestr = strftime("%Y%m%d-%H%M-%S_", localtime())
         print( 'Dummy would save to: ' + str(path) + timestr + str(postfix) + ".spe" )
 
     def getExposure(self):
+        """ Get exposure time.
+
+            @return float: exposure time
+        """
         return self.exposure
 
     def setExposure(self, exposureTime):
+        """ Set exposure time.
+
+            @param float exposureTime: exposure time
+        """
         self.exposure = exposureTime
