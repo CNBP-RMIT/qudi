@@ -138,12 +138,6 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
     _modtype = 'NICard'
     _modclass = 'hardware'
 
-    # connectors
-    _out = {'counter': 'SlowCounterInterface',
-            'confocalscanner': 'ConfocalScannerInterface',
-            'odmrcounter': 'ODMRCounterInterface'
-            }
-
     def on_activate(self, e=None):
         """ Starts up the NI Card at activation.
 
@@ -190,23 +184,23 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
         if 'scanner_x_ao' in config.keys():
             self._scanner_ao_channels.append(config['scanner_x_ao'])
             self._current_position.append(0)
-            self._position_range.append([0., 100.])
-            self._voltage_range.append([-10., 10.])
+            self._position_range.append([0, 100e-6])
+            self._voltage_range.append([-10, 10])
             if 'scanner_y_ao' in config.keys():
                 self._scanner_ao_channels.append(config['scanner_y_ao'])
                 self._current_position.append(0)
-                self._position_range.append([0., 100.])
-                self._voltage_range.append([-10., 10.])
+                self._position_range.append([0, 100e-6])
+                self._voltage_range.append([-10, 10])
                 if 'scanner_z_ao' in config.keys():
                     self._scanner_ao_channels.append(config['scanner_z_ao'])
                     self._current_position.append(0)
-                    self._position_range.append([0., 100.])
-                    self._voltage_range.append([-10., 10.])
+                    self._position_range.append([0, 100e-6])
+                    self._voltage_range.append([-10, 10])
                     if 'scanner_a_ao' in config.keys():
                         self._scanner_ao_channels.append(config['scanner_a_ao'])
                         self._current_position.append(0)
-                        self._position_range.append([0., 100.])
-                        self._voltage_range.append([-10., 10.])
+                        self._position_range.append([0, 100e-6])
+                        self._voltage_range.append([-10, 10])
 
         if len(self._scanner_ao_channels) < 1:
             self.log.error(
@@ -270,6 +264,11 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
                 'No parameter "scanner_clock_channel" configured.\n'
                 'Assign to that parameter an appropriate channel from your NI Card!')
 
+        if 'pixel_clock_channel' in config.keys():
+            self._pixel_clock_channel = config['pixel_clock_channel']
+        else:
+            self._pixel_clock_channel = None
+
         if 'clock_frequency' in config.keys():
             self._clock_frequency = config['clock_frequency']
         else:
@@ -318,11 +317,11 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
                                            float(config['x_range'][1])]
             else:
                 self.log.warning(
-                    'Configuration ({}) of x_range incorrect, taking [0,100] instead.'
+                    'Configuration ({}) of x_range incorrect, taking [0,100e-6] instead.'
                     ''.format(config['x_range']))
         else:
             if len(self._position_range) > 0:
-                self.log.warning('No x_range configured taking [0,100] instead.')
+                self.log.warning('No x_range configured taking [0,100e-6] instead.')
 
         if 'y_range' in config.keys() and len(self._position_range) > 1:
             if float(config['y_range'][0]) < float(config['y_range'][1]):
@@ -330,11 +329,11 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
                                            float(config['y_range'][1])]
             else:
                 self.log.warning(
-                    'Configuration ({}) of y_range incorrect, taking [0,100] instead.'
+                    'Configuration ({}) of y_range incorrect, taking [0,100e-6] instead.'
                     ''.format(config['y_range']))
         else:
             if len(self._position_range) > 1:
-                self.log.warning('No y_range configured taking [0,100] instead.')
+                self.log.warning('No y_range configured taking [0,100e-6] instead.')
 
         if 'z_range' in config.keys() and len(self._position_range) > 2:
             if float(config['z_range'][0]) < float(config['z_range'][1]):
@@ -342,11 +341,11 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
                                            float(config['z_range'][1])]
             else:
                 self.log.warning(
-                    'Configuration ({}) of z_range incorrect, taking [0,100] instead.'
+                    'Configuration ({}) of z_range incorrect, taking [0,100e-6] instead.'
                     ''.format(config['z_range']))
         else:
             if len(self._position_range) > 2:
-                self.log.warning('No z_range configured taking [0,100] instead.')
+                self.log.warning('No z_range configured taking [0,100e-6] instead.')
 
         if 'a_range' in config.keys() and len(self._position_range) > 3:
             if float(config['a_range'][0]) < float(config['a_range'][1]):
@@ -354,11 +353,11 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
                                            float(config['a_range'][1])]
             else:
                 self.log.warning(
-                    'Configuration ({}) of a_range incorrect, taking [0,100] instead.'
+                    'Configuration ({}) of a_range incorrect, taking [0,100e-6] instead.'
                     ''.format(config['a_range']))
         else:
             if len(self._position_range) > 3:
-                self.log.warning('No a_range configured taking [0,100] instead.')
+                self.log.warning('No a_range configured taking [0,100e-6] instead.')
 
         if 'voltage_range' in config.keys():
             if float(config['voltage_range'][0]) < float(config['voltage_range'][1]):
@@ -913,7 +912,7 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
 
         @return float [4][2]: array of 4 ranges with an array containing lower
                               and upper limit. The unit of the scan range is
-                              micrometer.
+                              meters.
         """
         return self._position_range
 
@@ -922,12 +921,12 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
 
         @param float [4][2] myrange: array of 4 ranges with an array containing
                                      lower and upper limit. The unit of the
-                                     scan range is micrometer.
+                                     scan range is meters.
 
         @return int: error code (0:OK, -1:error)
         """
         if myrange is None:
-            myrange = [[0, 1], [0, 1], [0, 1], [0, 1]]
+            myrange = [[0, 1e-6], [0, 1e-6], [0, 1e-6], [0, 1e-6]]
 
         if not isinstance( myrange, (frozenset, list, set, tuple, np.ndarray, ) ):
             self.log.error('Given range is no array type.')
@@ -1309,7 +1308,7 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
         """
         return self._current_position
 
-    def set_up_line(self, length=100):
+    def _set_up_line(self, length=100):
         """ Sets up the analog output for scanning a line.
 
         Connect the timing of the Analog scanning task with the timing of the
@@ -1400,12 +1399,14 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
             return -1
         return 0
 
-    def scan_line(self, line_path=None):
+    def scan_line(self, line_path=None, pixel_clock=False):
         """ Scans a line and return the counts on that line.
 
-        @param float[][n] line_path: array of n-part tuples defining the voltage points
+        @param float[c][m] line_path: array of c-tuples defining the voltage points
+            (m = samples per line)
+        @param bool pixel_clock: whether we need to output a pixel clock for this line
 
-        @return float[]: the photon counts per second
+        @return float[m][n]: m (samples per line) n-channel photon counts per second
 
         The input array looks for a xy scan of 5x5 points at the position z=-2
         like the following:
@@ -1425,7 +1426,7 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
             # specify how the Data of the selected task is collected, i.e. set it
             # now to be sampled by a hardware (clock) signal.
             daq.DAQmxSetSampTimingType(self._scanner_ao_task, daq.DAQmx_Val_SampClk)
-            self.set_up_line(np.shape(line_path)[1])
+            self._set_up_line(np.shape(line_path)[1])
             line_volts = self._scanner_position_to_volt(line_path)
             # write the positions to the analog output
             written_voltages = self._write_scanner_ao(
@@ -1440,6 +1441,12 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
                 daq.DAQmxStopTask(task)
 
             daq.DAQmxStopTask(self._scanner_clock_daq_task)
+
+            if pixel_clock and self._pixel_clock_channel is not None:
+                daq.DAQmxConnectTerms(
+                    self._scanner_clock_channel + 'InternalOutput',
+                    self._pixel_clock_channel,
+                    daq.DAQmx_Val_DoNotInvertPolarity)
 
             # start the scanner counting task that acquires counts synchroneously
             for i, task in enumerate(self._scanner_counter_daq_tasks):
@@ -1496,6 +1503,11 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
             # stop the analog output task
             self._stop_analog_output()
 
+            if pixel_clock and self._pixel_clock_channel is not None:
+                daq.DAQmxDisconnectTerms(
+                    self._scanner_clock_channel + 'InternalOutput',
+                    self._pixel_clock_channel)
+
             # create a new array for the final data (this time of the length
             # number of samples):
             self._real_data = np.empty(
@@ -1513,7 +1525,7 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
             self.log.exception('Error while scanning line.')
             return np.array([[-1.]])
         # return values is a rate of counts/s
-        return self._real_data * self._scanner_clock_frequency
+        return (self._real_data * self._scanner_clock_frequency).transpose()
 
     def close_scanner(self):
         """ Closes the scanner and cleans up afterwards.
@@ -2052,9 +2064,6 @@ class SlowGatedNICard(NICard):
     _modtype = 'SlowGatedNICard'
     _modclass = 'hardware'
 
-    # connectors
-    _out = {'gatedslowcounter1' : 'SlowCounterInterface'}
-
     def on_activate(self, e=None):
         """ Starts up the NI Card at activation.
 
@@ -2077,6 +2086,8 @@ class SlowGatedNICard(NICard):
         self._samples_number_default = 50
         # count on rising edge mainly used for gated counter
         self._counting_edge_default = True
+
+        self._counter_channels = []
 
         self._counter_channel = '/NIDAQ/Ctr0'
 
@@ -2117,6 +2128,20 @@ class SlowGatedNICard(NICard):
                 'No parameter "samples_number" configured taking the default value "{0}" instead.'
                 ''.format(self._samples_number_default))
             self._samples_number = self._samples_number_default
+
+    def get_constraints(self):
+        """ Get hardware limits of NI device.
+
+        @return SlowCounterConstraints: constraints class for slow counter
+
+        FIXME: ask hardware for limits when module is loaded
+        """
+        constraints = SlowCounterConstraints()
+        constraints.max_detectors = 4
+        constraints.min_count_frequency = 1e-3
+        constraints.max_count_frequency = 10e9
+        constraints.counting_mode = [CountingMode.FINITE_GATED]
+        return constraints
 
     #overwrite the SlowCounterInterface commands of the class NICard:
     def set_up_clock(self, clock_frequency=None, clock_channel=None):

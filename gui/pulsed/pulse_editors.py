@@ -52,7 +52,7 @@ class BlockEditor:
         self.parameter_dict = OrderedDict()
         self.parameter_dict['length'] = {'unit': 's', 'init_val': 0.0, 'min': 0.0, 'max': np.inf,
                                          'view_stepsize': 1e-9, 'dec': 8, 'unit_prefix': 'n', 'type': float}
-        self.parameter_dict['increment'] = {'unit': 's', 'init_val': 0.0, 'min': 0.0, 'max': np.inf,
+        self.parameter_dict['increment'] = {'unit': 's', 'init_val': 0.0, 'min': -999999999.99, 'max': np.inf,
                                             'view_stepsize': 1e-9, 'dec': 8, 'unit_prefix': 'n', 'type': float}
         self.parameter_dict['use as tick?'] = {'unit': '', 'init_val': 0, 'min': 0, 'max': 1, 'view_stepsize': 1,
                                                'dec': 0, 'unit_prefix': '', 'type': bool}
@@ -251,6 +251,8 @@ class BlockEditor:
 
     def delete_row(self, index):
         """ Delete row number 'index' """
+        if self.be_widget.rowCount() == 1 and index == 0:
+            return
         self.be_widget.blockSignals(True)
         self.be_widget.removeRow(index)
         self.be_widget.blockSignals(False)
@@ -282,7 +284,16 @@ class BlockEditor:
         model = self.be_widget.model()
         access = self.be_widget.itemDelegateForColumn(column).model_data_access
         data = model.index(row, column).data(access)
-        if type(data) == type(value):
+        if isinstance(data, float) and isinstance(value, float):
+            model.setData(model.index(row, column), value, access)
+            return value
+        elif isinstance(data, int) and isinstance(value, int):
+            model.setData(model.index(row, column), value, access)
+            return value
+        elif isinstance(data, bool) and isinstance(value, bool):
+            model.setData(model.index(row, column), value, access)
+            return value
+        elif isinstance(data, str) and isinstance(value, str):
             model.setData(model.index(row, column), value, access)
             return value
         else:
@@ -555,7 +566,11 @@ class BlockOrganizer:
 
     def delete_row(self, index):
         """ Delete row number 'index' """
+        if self.bo_widget.rowCount() == 1 and index == 0:
+            return
+        self.bo_widget.blockSignals(True)
         self.bo_widget.removeRow(index)
+        self.bo_widget.blockSignals(False)
         # FIXME: Implement a proper way to update the current block ensemble parameters
         return
 
@@ -583,7 +598,16 @@ class BlockOrganizer:
         model = self.bo_widget.model()
         access = self.bo_widget.itemDelegateForColumn(column).model_data_access
         data = self.bo_widget.model().index(row, column).data(access)
-        if type(data) == type(value):
+        if isinstance(data, float) and isinstance(value, float):
+            model.setData(model.index(row, column), value, access)
+            return value
+        elif isinstance(data, int) and isinstance(value, int):
+            model.setData(model.index(row, column), value, access)
+            return value
+        elif isinstance(data, bool) and isinstance(value, bool):
+            model.setData(model.index(row, column), value, access)
+            return value
+        elif isinstance(data, str) and isinstance(value, str):
             model.setData(model.index(row, column), value, access)
             return value
         else:
@@ -626,6 +650,7 @@ class BlockOrganizer:
         for row_index, (pulse_block, repetitions) in enumerate(ensemble.block_list):
             column = self._cfg_param_pb['pulse_block']
             self.set_element(row_index, column, pulse_block.name)
+            print(pulse_block.name)
             column = self._cfg_param_pb['repetitions']
             self.set_element(row_index, column, int(repetitions))
         return
@@ -665,9 +690,9 @@ class SequenceEditor:
         self.parameter_dict['trigger_wait'] = {'unit': '', 'init_val': False, 'min': 0,
                                                'max': 1, 'view_stepsize': 1, 'dec': 0,
                                                'unit_prefix': '', 'type': bool}
-        self.parameter_dict['go_to'] = {'unit': '', 'init_val': False, 'min': 0,
-                                        'max': 1, 'view_stepsize': 1, 'dec': 0,
-                                        'unit_prefix': '', 'type': bool}
+        self.parameter_dict['go_to'] = {'unit': '', 'init_val': 0, 'min': -1,
+                                        'max': (2 ** 31 - 1), 'view_stepsize': 1, 'dec': 0,
+                                        'unit_prefix': '', 'type': int}
         self.parameter_dict['event_jump_to'] = {'unit': '', 'init_val': 0, 'min': -1,
                                                 'max': (2 ** 31 - 1), 'view_stepsize': 1, 'dec': 0,
                                                 'unit_prefix': '', 'type': int}
@@ -802,7 +827,11 @@ class SequenceEditor:
 
     def delete_row(self, index):
         """ Delete row number 'index' """
+        if self.se_widget.rowCount() == 1 and index == 0:
+            return
+        self.se_widget.blockSignals(True)
         self.se_widget.removeRow(index)
+        self.se_widget.blockSignals(False)
         # FIXME: Implement a proper way to update the current block ensemble parameters
         return
 
@@ -830,7 +859,16 @@ class SequenceEditor:
         model = self.se_widget.model()
         access = self.se_widget.itemDelegateForColumn(column).model_data_access
         data = self.se_widget.model().index(row, column).data(access)
-        if type(data) == type(value):
+        if isinstance(data, float) and isinstance(value, float):
+            model.setData(model.index(row, column), value, access)
+            return value
+        elif isinstance(data, int) and isinstance(value, int):
+            model.setData(model.index(row, column), value, access)
+            return value
+        elif isinstance(data, bool) and isinstance(value, bool):
+            model.setData(model.index(row, column), value, access)
+            return value
+        elif isinstance(data, str) and isinstance(value, str):
             model.setData(model.index(row, column), value, access)
             return value
         else:
@@ -877,7 +915,7 @@ class SequenceEditor:
             column = self._cfg_param_ps['trigger_wait']
             self.set_element(row_index, column, bool(seq_param['trigger_wait']))
             column = self._cfg_param_ps['go_to']
-            self.set_element(row_index, column, bool(seq_param['go_to']))
+            self.set_element(row_index, column, int(seq_param['go_to']))
             column = self._cfg_param_ps['event_jump_to']
             self.set_element(row_index, column, int(seq_param['event_jump_to']))
         return
@@ -891,23 +929,24 @@ class SequenceEditor:
                                     throughout the sequence.
         """
         # list of all the pulse block ensemble objects
-        pbe_obj_list = [None] * self.se_widget.rowCount()
-        # parameter dictionary for pulse sequences
-        seq_param = dict()
+        pbe_obj_list = []
 
         for row_index in range(self.se_widget.rowCount()):
+            # Fetch previously saved ensemble object
             block_ensemble_name = self.get_element(row_index, self._cfg_param_ps['block_ensemble'])
+            ensemble = self.ensemble_dict[block_ensemble_name]
+
+            # parameter dictionary for pulse sequences
+            seq_param = dict()
             seq_param['repetitions'] = self.get_element(row_index,
                                                         self._cfg_param_ps['repetitions'])
             seq_param['trigger_wait'] = int(self.get_element(row_index,
                                                              self._cfg_param_ps['trigger_wait']))
-            seq_param['go_to'] = int(self.get_element(row_index, self._cfg_param_ps['go_to']))
+            seq_param['go_to'] = self.get_element(row_index, self._cfg_param_ps['go_to'])
             seq_param['event_jump_to'] = self.get_element(row_index,
                                                           self._cfg_param_ps['event_jump_to'])
-            # Fetch previously saved ensemble object
-            ensemble = self.ensemble_dict[block_ensemble_name]
             # Append ensemble object along with repetitions to the ensemble list
-            pbe_obj_list[row_index] = (ensemble, seq_param)
+            pbe_obj_list.append((ensemble, seq_param))
 
         # Create the PulseSequence object
         pulse_sequence = PulseSequence(name=sequence_name, ensemble_param_list=pbe_obj_list,

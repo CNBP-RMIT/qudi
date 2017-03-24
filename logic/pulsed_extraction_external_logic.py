@@ -43,10 +43,11 @@ class PulsedExtractionExternalLogic(GenericLogic):
     _modtype = 'logic'
 
     # declare connectors
-    _in = {'savelogic': 'SaveLogic',
-           'pulseextractionlogic': 'PulseExtractionLogic',
-           'pulseanalysislogic': 'PulseAnalysisLogic'}
-    _out = {'pulsedextractionexternallogic': 'PulsedExtractionExternalLogic'}
+    _connectors = {
+        'savelogic': 'SaveLogic',
+        'pulseextractionlogic': 'PulseExtractionLogic',
+        'pulseanalysislogic': 'PulseAnalysisLogic'
+    }
 
     def __init__(self, **kwargs):
         """ Create QdplotLogic object with connectors.
@@ -71,9 +72,9 @@ class PulsedExtractionExternalLogic(GenericLogic):
         """
 
 
-        self._save_logic = self.get_in_connector('savelogic')
-        self._pe_logic = self.get_in_connector('pulseextractionlogic')
-        self._pa_logic = self.get_in_connector('pulseanalysislogic')
+        self._save_logic = self.get_connector('savelogic')
+        self._pe_logic = self.get_connector('pulseextractionlogic')
+        self._pa_logic = self.get_connector('pulseanalysislogic')
 
     def on_deactivate(self, e):
         """ Deinitialisation performed during deactivation of the module.
@@ -91,20 +92,23 @@ class PulsedExtractionExternalLogic(GenericLogic):
         if method =='Niko':
             number_laser=param_dict['number_laser']
             conv=param_dict['conv']
-            laser_y = self._pe_logic.ungated_extraction(self.data,conv,number_laser)
+            return_dict = self._pe_logic.ungated_extraction(self.data,conv,number_laser)
+            laser_y = return_dict['laser_arr_y']
         elif method == 'treshold':
             count_treshold=param_dict['count_treshold']
             min_len_laser=param_dict['min_len_laser']
             exception=param_dict['exception']
-            laser_y = self._pe_logic.extract_laser_pulses(self.data,count_treshold,min_len_laser,exception)
+            return_dict = self._pe_logic.extract_laser_pulses(self.data,count_treshold,min_len_laser,exception)
+            laser_y = return_dict['laser_arr_y']
         elif method == 'old':
             number_laser=param_dict['number_laser']
             laser_length=param_dict['laser_length']
             initial_offset=param_dict['initial_offset']
             initial_length=param_dict['initial_length']
             increment_length=param_dict['increment_length']
-            laser_y = self._pe_logic.excise_laser_pulses(self.data,number_laser,laser_length,
-                                                         initial_offset,initial_length,increment_length)
+            return_dict = self._pe_logic.excise_laser_pulses(self.data,number_laser,laser_length,
+                                                             initial_offset,initial_length,increment_length)
+            laser_y = return_dict['laser_arr_y']
         else:
             self.log.warning('Not yet implemented')
         if ignore_first:
@@ -152,14 +156,8 @@ class PulsedExtractionExternalLogic(GenericLogic):
         filelabel='result'
         filepath = self._save_logic.get_path_for_module(module_name='Counter')
 
-        self._save_logic.save_data(data,
-                                       filepath,
-                                       parameters=parameters,
-                                       filelabel=filelabel,
-                                       as_text=True,
-                                       plotfig=fig
-                                       )
-        plt.close(fig)
+        self._save_logic.save_data(data, filepath=filepath, parameters=parameters,
+                                   filelabel=filelabel, plotfig=fig, delimiter='\t')
 
         return self._data_to_save, parameters
 
