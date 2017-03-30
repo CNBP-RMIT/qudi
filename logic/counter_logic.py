@@ -60,7 +60,8 @@ class CounterLogic(GenericLogic):
     ## declare connectors
     _connectors = {
         'counter1': 'SlowCounterInterface',
-        'savelogic': 'SaveLogic'}
+        'savelogic': 'SaveLogic',
+        'confocal': 'confocalLogic'}
 
     def __init__(self, config, **kwargs):
         """ Create CounterLogic object with connectors.
@@ -106,6 +107,7 @@ class CounterLogic(GenericLogic):
         # Connect to hardware and save logic
         self._counting_device = self.get_connector('counter1')
         self._save_logic = self.get_connector('savelogic')
+        self._confocal_logic = self.get_connector('confocal')
 
         # Recall saved app-parameters
         if 'count_length' in self._statusVariables:
@@ -133,11 +135,15 @@ class CounterLogic(GenericLogic):
 
         # Flag to stop the loop
         self.stopRequested = False
+        self._interrupted = False
 
         self._saving_start_time = time.time()
 
         # connect signals
         self.sigCountDataNext.connect(self.count_loop_body, QtCore.Qt.QueuedConnection)
+        self._confocal_logic.signal_start_scanning.connect(self.interruptCount, QtCore.Qt.QueuedConnection)
+        self._confocal_logic.signal_continue_scanning.connect(self.interruptCount, QtCore.Qt.QueuedConnection)
+        self._confocal_logic.signal_stop_scanning.connect(self.restartCount, QtCore.Qt.QueuedConnection)
         return
 
     def on_deactivate(self, e):
@@ -397,6 +403,20 @@ class CounterLogic(GenericLogic):
                 'FINITE_GATED'  = finite measurement with predefined number of samples
         """
         return self._counting_mode
+
+    def restartCount(self):
+        """ Start the counter only if it was interrupted before.
+        """
+        if self._interrupted:
+            self._interrupted = False
+            self.startCount()
+
+    def interruptCount(self):
+        """ Stop the counter if it was running.
+        """
+        if self.getState() == 'locked':
+            self._interrupted = True
+        self.stopCount()
 
     # FIXME: Not implemented for self._counting_mode == 'gated'
     def startCount(self):
