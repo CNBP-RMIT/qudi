@@ -415,27 +415,9 @@ class SaveLogic(GenericLogic):
             # that will extract the name of the class.
             module_name = mod.__name__.split('.')[-1]
         except:
-
             # Sometimes it is not possible to get the object which called the save_data function
             # (such as when calling this from the console).
             module_name = 'UNSPECIFIED'
-
-        # Open the system dialog to save the data into a specific path and
-        # filename based on the setting from the config file
-        if not self.save_into_default_directory:
-            # Avoid dialog opening if it is called from the console
-            if not module_name == 'NaN':
-                new_filepath = QFileDialog.getSaveFileName(
-                    None, str("Save data"), self.data_dir, str("Data files (*.dat)"))
-                if not new_filepath:
-                    self.log.warning('Saving aborted because no file was '
-                                     'specified. Please save your data again.')
-                    return -1
-                else:
-                    (filepath, filename) = os.path.split(new_filepath)
-                    # Remember the saving folder as the default one next time
-                    # something else is saved
-                    self.data_dir = filepath
 
         # determine proper file path
         if filepath is None:
@@ -595,6 +577,8 @@ class SaveLogic(GenericLogic):
             plt.close(plotfig)
             self.log.debug('Time needed to save data: {0:.2f}s'.format(time.time()-start_time))
             #----------------------------------------------------------------------------------
+
+        self.log.info('File {0} saved in {1} folder'.format(filename, filepath))
 
     def save_array_as_text(self, data, filename, filepath='', fmt='%.15e', header='',
                            delimiter='\t', comments='#', append=False):
@@ -763,3 +747,23 @@ class SaveLogic(GenericLogic):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
         return dir_path
+
+    def get_path_from_dialog(self):
+        """
+        Methods that open the os saving dialog box and return user-defined filename and path.
+
+        @return string, string: user-defined saving folder and user-defined saving name
+        """
+        new_filepath = QFileDialog.getSaveFileName(
+            None, str("Save data"), self.data_dir,
+            str("Data files (*.dat)"))
+        if not new_filepath[0]:
+            self.log.warning('Saving aborted because no file was '
+                             'specified. Please save your data again.')
+            return -1
+        else:
+            (filepath, filename) = os.path.split(new_filepath[0])
+            # Remember the saving folder as the default one next time
+            # something else is saved
+            self.data_dir = filepath
+        return filepath, filename
