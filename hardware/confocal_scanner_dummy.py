@@ -19,6 +19,7 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+from qtpy import QtCore
 import numpy as np
 import time
 
@@ -31,6 +32,10 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
     """ Dummy confocal scanner.
         Produces a picture with several gaussian spots.
     """
+
+    sigOverstepCounter = QtCore.Signal()
+    sigReleaseCounter = QtCore.Signal()
+
     _modclass = 'ConfocalScannerDummy'
     _modtype = 'hardware'
     # connectors

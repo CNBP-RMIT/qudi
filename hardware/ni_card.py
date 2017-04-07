@@ -20,6 +20,7 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+from qtpy import QtCore
 import numpy as np
 import re
 
@@ -134,6 +135,9 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
         The NI 6323 was taken as a basis for this hardware module and thus all
         the function are working on that card.
     """
+
+    sigOverstepCounter = QtCore.Signal()
+    sigReleaseCounter = QtCore.Signal()
 
     _modtype = 'NICard'
     _modclass = 'hardware'

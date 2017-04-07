@@ -60,8 +60,7 @@ class CounterLogic(GenericLogic):
     ## declare connectors
     _connectors = {
         'counter1': 'SlowCounterInterface',
-        'savelogic': 'SaveLogic',
-        'confocal': 'confocalLogic'}
+        'savelogic': 'SaveLogic'}
 
     def __init__(self, config, **kwargs):
         """ Create CounterLogic object with connectors.
@@ -107,7 +106,6 @@ class CounterLogic(GenericLogic):
         # Connect to hardware and save logic
         self._counting_device = self.get_connector('counter1')
         self._save_logic = self.get_connector('savelogic')
-        self._confocal_logic = self.get_connector('confocal')
 
         # Recall saved app-parameters
         if 'count_length' in self._statusVariables:
@@ -141,9 +139,8 @@ class CounterLogic(GenericLogic):
 
         # connect signals
         self.sigCountDataNext.connect(self.count_loop_body, QtCore.Qt.QueuedConnection)
-        self._confocal_logic.signal_start_scanning.connect(self.interruptCount, QtCore.Qt.QueuedConnection)
-        self._confocal_logic.signal_continue_scanning.connect(self.interruptCount, QtCore.Qt.QueuedConnection)
-        self._confocal_logic.signal_stop_scanning.connect(self.restartCount, QtCore.Qt.QueuedConnection)
+        self._counting_device.sigOverstepCounter.connect(self.interruptCount, QtCore.Qt.QueuedConnection)
+        self._counting_device.sigReleaseCounter.connect(self.restartCount, QtCore.Qt.QueuedConnection)
         return
 
     def on_deactivate(self, e):
