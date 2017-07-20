@@ -202,16 +202,8 @@ class SaveLogic(GenericLogic):
         for key in config.keys():
             self.log.info('{0}: {1}'.format(key, config[key]))
 
-    def on_activate(self, e=None):
+    def on_activate(self):
         """ Definition, configuration and initialisation of the SaveLogic.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look
-                         in the Base Class). This object contains the passed
-                         event the state before the event happens and the
-                         destination of the state which should be reached
-                         after the event has happen.
         """
         if self.log_into_daily_directory:
             # adds a log handler for logging into daily directory
@@ -225,7 +217,7 @@ class SaveLogic(GenericLogic):
         else:
             self._daily_loghandler = None
 
-    def on_deactivate(self, e=None):
+    def on_deactivate(self):
         if self._daily_loghandler is not None:
             # removes the log handler logging into the daily directory
             logging.getLogger().removeHandler(self._daily_loghandler)
@@ -563,6 +555,8 @@ class SaveLogic(GenericLogic):
             self.log.debug('Time needed to save data: {0:.2f}s'.format(time.time()-start_time))
             #----------------------------------------------------------------------------------
 
+        self.log.info('File {0} saved in {1} folder'.format(filename, filepath))
+
     def save_array_as_text(self, data, filename, filepath='', fmt='%.15e', header='',
                            delimiter='\t', comments='#', append=False):
         """
@@ -730,3 +724,23 @@ class SaveLogic(GenericLogic):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
         return dir_path
+
+    def get_path_from_dialog(self):
+        """
+        Methods that open the os saving dialog box and return user-defined filename and path.
+
+        @return string, string: user-defined saving folder and user-defined saving name
+        """
+        new_filepath = QFileDialog.getSaveFileName(
+            None, str("Save data"), self.data_dir,
+            str("Data files (*.dat)"))
+        if not new_filepath[0]:
+            self.log.warning('Saving aborted because no file was '
+                             'specified. Please save your data again.')
+            return -1
+        else:
+            (filepath, filename) = os.path.split(new_filepath[0])
+            # Remember the saving folder as the default one next time
+            # something else is saved
+            self.data_dir = filepath
+        return filepath, filename
