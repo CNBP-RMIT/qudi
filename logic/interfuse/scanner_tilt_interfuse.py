@@ -18,7 +18,6 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
-from qtpy import QtCore
 from logic.generic_logic import GenericLogic
 from interface.confocal_scanner_interface import ConfocalScannerInterface
 import copy
@@ -28,8 +27,6 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
     """ This interfuse produces a Z correction corresponding to a tilted surface.
     """
 
-    sigOverstepCounter = QtCore.Signal()
-    sigReleaseCounter = QtCore.Signal()
 
     _modclass = 'ScannerTiltInterfuse'
     _modtype = 'interfuse'
@@ -50,8 +47,6 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
         self.tilt_reference_x = 0
         self.tilt_reference_y = 0
 
-        self.sigOverstepCounter.connect(self._overstep_count_wrapper, QtCore.Qt.QueuedConnection)
-        self.sigReleaseCounter.connect(self._release_count_wrapper, QtCore.Qt.QueuedConnection)
 
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
@@ -218,9 +213,3 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
                 + (y - self.tilt_reference_y) * self.tilt_variable_ay
             )
             return dz
-
-    def _overstep_count_wrapper(self):
-        self._scanning_device.sigOverstepCounter.emit()
-
-    def _release_count_wrapper(self):
-        self._scanning_device.sigReleaseCounter.emit()

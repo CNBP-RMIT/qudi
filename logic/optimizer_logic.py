@@ -286,7 +286,7 @@ class OptimizerLogic(GenericLogic):
         self._optimization_step = 0
         self.check_optimization_sequence()
 
-        self._scanning_device.sigOverstepCounter.emit()
+
         scanner_status = self.start_scanner()
         if scanner_status < 0:
             self.sigRefocusFinished.emit(
@@ -300,8 +300,6 @@ class OptimizerLogic(GenericLogic):
         """Stops refocus."""
         with self.threadlock:
             self.stopRequested = True
-
-        self._scanning_device.sigReleaseCounter.emit()
 
     def _initialize_xy_refocus_image(self):
         """Initialisation of the xy refocus image."""

@@ -19,20 +19,27 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+from qtpy import QtCore
 import numpy as np
+import random
 import time
 
 from core.base import Base
 from interface.confocal_scanner_interface import ConfocalScannerInterface
+from interface.slow_counter_interface import SlowCounterInterface
+from interface.slow_counter_interface import SlowCounterConstraints
+from interface.slow_counter_interface import CountingMode
 
 
-class ConfocalScannerDummy(Base, ConfocalScannerInterface):
+class CounterScannerDummy(Base, SlowCounterInterface, ConfocalScannerInterface):
 
-    """ Dummy confocal scanner.
-        Produces a picture with several gaussian spots.
+    """ Dummy counter and confocal scanner (NI card dummy).
     """
 
-    _modclass = 'ConfocalScannerDummy'
+    sigOverstepCounter = QtCore.Signal()
+    sigReleaseCounter = QtCore.Signal()
+
+    _modclass = 'CounterScannerDummy'
     _modtype = 'hardware'
     # connectors
     _connectors = {'fitlogic': 'FitLogic'}
@@ -46,25 +53,79 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
         for key in config.keys():
             self.log.info('{0}: {1}'.format(key, config[key]))
 
-        if 'clock_frequency' in config.keys():
-            self._clock_frequency = config['clock_frequency']
-        else:
-            self._clock_frequency = 100
-            self.log.warning('No clock_frequency configured taking 100 Hz instead.')
-
-        # Internal parameters
-        self._line_length = None
-        self._voltage_range = [-10, 10]
-
-        self._position_range = [[0, 100e-6], [0, 100e-6], [0, 100e-6], [0, 1e-6]]
-        self._current_position = [0, 0, 0, 0][0:len(self.get_scanner_axes())]
-        self._num_points = 500
-
     def on_activate(self):
         """ Initialisation performed during activation of the module.
         """
 
         self._fit_logic = self.get_connector('fitlogic')
+
+        config = self.getConfiguration()
+
+        if 'clock_frequency' in config.keys():
+            self._clock_frequency = config['clock_frequency']
+        else:
+            self._clock_frequency = 100
+            self.log.warning('No parameter "clock_frequency" configured in '
+                             'Slow Counter Dummy, taking the default value of {0} Hz '
+                             'instead.'.format(self._clock_frequency))
+
+        if 'samples_number' in config.keys():
+            self._samples_number = config['samples_number']
+        else:
+            self._samples_number = 10
+            self.log.warning('No parameter "samples_number" configured in '
+                             'Slow Counter Dummy, taking the default value of {0} '
+                             'instead.'.format(self._samples_number))
+
+        if 'source_channels' in config.keys():
+            self.source_channels = int(config['source_channels'])
+        else:
+            self.source_channels = 2
+
+        if 'count_distribution' in config.keys():
+            self.dist = config['count_distribution']
+        else:
+            self.dist = 'dark_bright_gaussian'
+            self.log.warning(
+                'No parameter "count_distribution" given in the configuration for the'
+                'Slow Counter Dummy. Possible distributions are "dark_bright_gaussian",'
+                '"uniform", "exponential", "single_poisson", "dark_bright_poisson"'
+                'and "single_gaussian". Taking the default distribution "{0}".'
+                ''.format(self.dist))
+
+        # attribute to allow counter interruption
+        # it can be 'private' if the hardware cannot be interrupted
+        #           'interruptable' if a counter is running that can be automatically stopped
+        #        or 'interrupted' if a scanner overstepped a counter
+        self.sharing_status = 'private'
+
+        # Counter parameters
+        if self.dist == 'dark_bright_poisson':
+            self.mean_signal = 250
+            self.contrast = 0.2
+        else:
+            self.mean_signal = 260 * 1000
+            self.contrast = 0.3
+
+        self.mean_signal2 = self.mean_signal - self.contrast * self.mean_signal
+        self.noise_amplitude = self.mean_signal * 0.1
+
+        self.life_time_bright = 0.08  # 80 millisecond
+        self.life_time_dark = 0.04  # 40 milliseconds
+
+        # needed for the life time simulation
+        self.current_dec_time = self.life_time_bright
+        self.curr_state_b = True
+        self.total_time = 0.0
+
+        # Confocal parameters
+        self._line_length = None
+        self._voltage_range = [-10, 10]
+
+        self._position_range = [[0, 100e-6], [0, 100e-6], [0, 100e-6],
+                                [0, 1e-6]]
+        self._current_position = [0, 0, 0, 0][0:len(self.get_scanner_axes())]
+        self._num_points = 500
 
         # put randomly distributed NVs in the scanner, first the x,y scan
         self._points = np.empty([self._num_points, 7])
@@ -126,7 +187,194 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
     def on_deactivate(self):
         """ Deactivate properly the confocal scanner dummy.
         """
+        self.log.warning('slowcounterdummy>deactivation')
         self.reset_hardware()
+
+
+    # =================== SlowCounterInterface Commands ========================
+
+    def get_constraints(self):
+        """ Return a constraints class for the slow counter."""
+        constraints = SlowCounterConstraints()
+        constraints.min_count_frequency = 5e-5
+        constraints.max_count_frequency = 5e5
+        constraints.counting_mode = [
+            CountingMode.CONTINUOUS,
+            CountingMode.GATED,
+            CountingMode.FINITE_GATED]
+
+        return constraints
+
+    def set_up_clock(self, clock_frequency=None, clock_channel=None, scanner=False, idle=False):
+        """ Configures the hardware clock of the NiDAQ card to give the timing.
+
+        @param float clock_frequency: if defined, this sets the frequency of the clock
+        @param string clock_channel: if defined, this is the physical channel of the clock
+
+        @return int: error code (0:OK, -1:error)
+        """
+        if not scanner and self.sharing_status == 'private':
+            self.sharing_status = 'interruptable'
+            self.log.warning('slowcounterdummy>set_up_clock')
+
+        if scanner:
+            # Check if the current task can be interrupted
+            if self.sharing_status != 'interruptable':
+                self.log.error('Another scanner clock is already running, close this one first.')
+                return -1
+            else:
+                self.sigOverstepCounter.emit()
+                self.sharing_status = 'interrupted'
+                self.log.warning('Existing counter clock interrupted.')
+                self.log.warning('scannerdummy>set_up_clock')
+
+        if clock_frequency is not None:
+            self._clock_frequency = float(clock_frequency)
+
+        self.log.warning('Current sharing status is {0}'.format(self.sharing_status))
+
+        time.sleep(0.1)
+        return 0
+
+    def set_up_counter(self,
+                       counter_channels=None,
+                       sources=None,
+                       clock_channel=None,
+                       counter_buffer=None):
+        """ Configures the actual counter with a given clock.
+
+        @param string counter_channel: if defined, this is the physical channel of the counter
+        @param string photon_source: if defined, this is the physical channel where the photons are to count from
+        @param string clock_channel: if defined, this specifies the clock for the counter
+
+        @return int: error code (0:OK, -1:error)
+        """
+
+        self.log.warning('slowcounterdummy>set_up_counter')
+        time.sleep(0.1)
+        return 0
+
+    def get_counter(self, samples=None):
+        """ Returns the current counts per second of the counter.
+
+        @param int samples: if defined, number of samples to read in one go
+
+        @return float: the photon counts per second
+        """
+        count_data = np.array(
+            [self._simulate_counts(samples) + i * self.mean_signal
+                for i, ch in enumerate(self.get_counter_channels())]
+            )
+
+        time.sleep(1 / self._clock_frequency * samples)
+        return count_data
+
+    def get_counter_channels(self):
+        """ Returns the list of counter channel names.
+        @return tuple(str): channel names
+        Most methods calling this might just care about the number of channels, though.
+        """
+        return ['Ctr{0}'.format(i) for i in range(self.source_channels)]
+
+    def _simulate_counts(self, samples=None):
+        """ Simulate counts signal from an APD.  This can be called for each dummy counter channel.
+
+        @param int samples: if defined, number of samples to read in one go
+
+        @return float: the photon counts per second
+        """
+
+        if samples is None:
+            samples = int(self._samples_number)
+        else:
+            samples = int(samples)
+
+        timestep = 1 / self._clock_frequency * samples
+
+        # count data will be written here in the NumPy array
+        count_data = np.empty([samples], dtype=np.uint32)
+
+        for i in range(samples):
+            if self.dist == 'single_gaussian':
+                count_data[i] = np.random.normal(self.mean_signal, self.noise_amplitude / 2)
+            elif self.dist == 'dark_bright_gaussian':
+                self.total_time = self.total_time + timestep
+                if self.total_time > self.current_dec_time:
+                    if self.curr_state_b:
+                        self.curr_state_b = False
+                        self.current_dec_time = np.random.exponential(self.life_time_dark)
+                        count_data[i] = np.random.poisson(self.mean_signal)
+                    else:
+                        self.curr_state_b = True
+                        self.current_dec_time = np.random.exponential(self.life_time_bright)
+                    self.total_time = 0.0
+
+                count_data[i] = (np.random.normal(self.mean_signal, self.noise_amplitude) * self.curr_state_b
+                                + np.random.normal(self.mean_signal2, self.noise_amplitude) * (1-self.curr_state_b))
+
+            elif self.dist == 'uniform':
+                count_data[i] = self.mean_signal + random.uniform(-self.noise_amplitude / 2, self.noise_amplitude / 2)
+
+            elif self.dist == 'exponential':
+                count_data[i] = np.random.exponential(self.mean_signal)
+
+            elif self.dist == 'single_poisson':
+                count_data[i] = np.random.poisson(self.mean_signal)
+
+            elif self.dist == 'dark_bright_poisson':
+                self.total_time = self.total_time + timestep
+
+                if self.total_time > self.current_dec_time:
+                    if self.curr_state_b:
+                        self.curr_state_b = False
+                        self.current_dec_time = np.random.exponential(self.life_time_dark)
+                        count_data[i] = np.random.poisson(self.mean_signal)
+                    else:
+                        self.curr_state_b = True
+                        self.current_dec_time = np.random.exponential(self.life_time_bright)
+                    self.total_time = 0.0
+
+                count_data[i] = (np.random.poisson(self.mean_signal) * self.curr_state_b
+                                + np.random.poisson(self.mean_signal2) * (1-self.curr_state_b))
+            else:
+                # make uniform as default
+                count_data[0][i] = self.mean_signal + random.uniform(-self.noise_amplitude/2, self.noise_amplitude/2)
+
+        return count_data
+
+    def close_counter(self):
+        """ Closes the counter and cleans up afterwards.
+
+        @return int: error code (0:OK, -1:error)
+        """
+
+        self.log.warning('slowcounterdummy>close_counter')
+        return 0
+
+    def close_clock(self, scanner=False):
+        """ Closes the clock and cleans up afterwards.
+
+        @return int: error code (0:OK, -1:error)
+        """
+        # Set the task handle to None as a safety and manage interrupted tasks
+        if scanner:
+            self.log.warning('scannerdummy>close_clock')
+            if self.sharing_status == 'interrupted':
+                self.sigReleaseCounter.emit()
+                self.sharing_status = 'interruptable'
+                self.log.warning('Previously interrupted counter clock will restart.')
+        else:
+            self.log.warning('slowcounterdummy>close_clock')
+            if self.sharing_status == 'interruptable':
+                self.sharing_status = 'private'
+
+        self.log.warning('Current sharing status is {0}'.format(self.sharing_status))
+
+        return 0
+
+    # ================ End SlowCounterInterface Commands =======================
+
+    # ================ ConfocalScannerInterface Commands =======================
 
     def reset_hardware(self):
         """ Resets the hardware, so the connection is lost and other programs
@@ -233,6 +481,8 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
 
         @return int: error code (0:OK, -1:error)
         """
+
+        self.set_up_clock(clock_frequency, clock_channel, True)
 
         if clock_frequency is not None:
             self._clock_frequency = float(clock_frequency)
@@ -360,7 +610,7 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
 
         @return int: error code (0:OK, -1:error)
         """
-
+        self.close_clock(scanner=True)
         self.log.debug('ConfocalScannerDummy>close_scanner_clock')
         return 0
 
@@ -441,4 +691,4 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
         gaussian = amplitude*np.exp(-(x_data-x_zero)**2/(2*sigma**2))+offset
         return gaussian
 
-
+    # ================ End ConfocalScannerInterface Commands ===================

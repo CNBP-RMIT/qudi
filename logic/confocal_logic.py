@@ -428,7 +428,6 @@ class ConfocalLogic(GenericLogic):
             if self.getState() == 'locked':
                 self.stopRequested = True
         self.signal_stop_scanning.emit()
-        self._scanning_device.sigReleaseCounter.emit()
         return 0
 
     def initialize_image(self):
@@ -535,7 +534,6 @@ class ConfocalLogic(GenericLogic):
         """
         self.lock()
 
-        self._scanning_device.sigOverstepCounter.emit()
         self._scanning_device.lock()
         if self.initialize_image() < 0:
             self._scanning_device.unlock()
@@ -569,7 +567,6 @@ class ConfocalLogic(GenericLogic):
         @return int: error code (0:OK, -1:error)
         """
         self.lock()
-        self._scanning_device.sigOverstepCounter.emit()
         self._scanning_device.lock()
 
         clock_status = self._scanning_device.set_up_scanner_clock(
