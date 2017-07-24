@@ -25,6 +25,7 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
+from core.module import Connector, StatusVar
 from logic.generic_logic import GenericLogic
 from interface.slow_counter_interface import CountingMode
 from core.util.mutex import Mutex
@@ -58,10 +59,16 @@ class CounterLogic(GenericLogic):
     _modtype = 'logic'
 
     ## declare connectors
-    _connectors = {
-        'counter1': 'SlowCounterInterface',
-        'savelogic': 'SaveLogic',
-        'confocal': 'confocalLogic'}
+    counter1 = Connector(interface='SlowCounterInterface')
+    savelogic = Connector(interface='SaveLogic')
+
+    # status vars
+    _count_length = StatusVar('count_length', 300)
+    _smooth_window_length = StatusVar('smooth_window_length', 10)
+    _counting_samples = StatusVar('counting_samples', 1)
+    _count_frequency = StatusVar('count_frequency', 50)
+    _saving = StatusVar('saving', False)
+
 
     def __init__(self, config, **kwargs):
         """ Create CounterLogic object with connectors.
@@ -74,11 +81,11 @@ class CounterLogic(GenericLogic):
         #locking for thread safety
         self.threadlock = Mutex()
 
-        self.log.info('The following configuration was found.')
+        self.log.debug('The following configuration was found.')
 
         # checking for the right configuration
         for key in config.keys():
-            self.log.info('{0}: {1}'.format(key, config[key]))
+            self.log.debug('{0}: {1}'.format(key, config[key]))
 
         # in bins
         self._count_length = 300
@@ -99,21 +106,10 @@ class CounterLogic(GenericLogic):
         # Connect to hardware and save logic
         self._counting_device = self.get_connector('counter1')
         self._save_logic = self.get_connector('savelogic')
-        self._confocal_logic = self.get_connector('confocal')
 
         # Recall saved app-parameters
-        if 'count_length' in self._statusVariables:
-            self._count_length = self._statusVariables['count_length']
-        if 'smooth_window_length' in self._statusVariables:
-            self._smooth_window_length = self._statusVariables['smooth_window_length']
-        if 'counting_samples' in self._statusVariables:
-            self._counting_samples = self._statusVariables['counting_samples']
-        if 'count_frequency' in self._statusVariables:
-            self._count_frequency = self._statusVariables['count_frequency']
         if 'counting_mode' in self._statusVariables:
             self._counting_mode = CountingMode[self._statusVariables['counting_mode']]
-        if 'saving' in self._statusVariables:
-            self._saving = self._statusVariables['saving']
 
         constraints = self.get_hardware_constraints()
         number_of_detectors = constraints.max_detectors
@@ -127,27 +123,18 @@ class CounterLogic(GenericLogic):
 
         # Flag to stop the loop
         self.stopRequested = False
-        self._interrupted = False
 
         self._saving_start_time = time.time()
 
         # connect signals
         self.sigCountDataNext.connect(self.count_loop_body, QtCore.Qt.QueuedConnection)
-        self._confocal_logic.signal_start_scanning.connect(self.interruptCount, QtCore.Qt.QueuedConnection)
-        self._confocal_logic.signal_continue_scanning.connect(self.interruptCount, QtCore.Qt.QueuedConnection)
-        self._confocal_logic.signal_stop_scanning.connect(self.restartCount, QtCore.Qt.QueuedConnection)
         return
 
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
         """
         # Save parameters to disk
-        self._statusVariables['count_length'] = self._count_length
-        self._statusVariables['smooth_window_length'] = self._smooth_window_length
-        self._statusVariables['counting_samples'] = self._counting_samples
-        self._statusVariables['count_frequency'] = self._count_frequency
         self._statusVariables['counting_mode'] = self._counting_mode.name
-        self._statusVariables['saving'] = self._saving
 
         # Stop measurement
         if self.getState() == 'locked':
@@ -392,20 +379,6 @@ class CounterLogic(GenericLogic):
                 'FINITE_GATED'  = finite measurement with predefined number of samples
         """
         return self._counting_mode
-
-    def restartCount(self):
-        """ Start the counter only if it was interrupted before.
-        """
-        if self._interrupted:
-            self._interrupted = False
-            self.startCount()
-
-    def interruptCount(self):
-        """ Stop the counter if it was running.
-        """
-        if self.getState() == 'locked':
-            self._interrupted = True
-        self.stopCount()
 
     # FIXME: Not implemented for self._counting_mode == 'gated'
     def startCount(self):
