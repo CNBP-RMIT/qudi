@@ -425,13 +425,13 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
         """
 
         if not scanner:
-            if self._clock_daq_task is not None:
+            if (self._clock_daq_task is not None or self._scanner_clock_daq_task is not None):
                 self.log.error('Another counter clock is already running, close this one first.')
                 return -1
             elif self.sharing_status == 'private':
                 self.sharing_status = 'interruptable'
 
-        if scanner and self._scanner_clock_daq_task is not None:
+        if scanner and (self._clock_daq_task is not None or self._scanner_clock_daq_task is not None):
             # Check if the current task can be interrupted
             if self.sharing_status != 'interruptable':
                 self.log.error('Another scanner clock is already running, close this one first.')
@@ -473,13 +473,13 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
 
         # check whether only one clock pair is available, since some NI cards
         # only one clock channel pair.
-        if self._scanner_clock_channel == self._clock_channel:
-            if not ((self._clock_daq_task is None) and (self._scanner_clock_daq_task is None)):
-                self.log.error(
-                    'Only one clock channel is available!\n'
-                    'Another clock is already running, close this one first '
-                    'in order to use it for your purpose!')
-                return -1
+        # if self._scanner_clock_channel == self._clock_channel:
+        #     if not ((self._clock_daq_task is None) and (self._scanner_clock_daq_task is None)):
+        #         self.log.error(
+        #             'Only one clock channel is available!\n'
+        #             'Another clock is already running, close this one first '
+        #             'in order to use it for your purpose!')
+        #         return -1
 
         # Adjust the idle state if necessary
         my_idle = daq.DAQmx_Val_High if idle else daq.DAQmx_Val_Low
