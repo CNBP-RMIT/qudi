@@ -20,6 +20,7 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+from qtpy import QtCore
 import numpy as np
 import re
 
@@ -135,6 +136,9 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
         the function are working on that card.
     """
 
+    sigOverstepCounter = QtCore.Signal()
+    sigReleaseCounter = QtCore.Signal()
+
     _modtype = 'NICard'
     _modclass = 'hardware'
 
@@ -176,6 +180,12 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
         self._scanner_clock_frequency_default = 100     # in Hz
         # number of readout samples, mainly used for gated counter
         self._samples_number_default = 50
+
+        # attribute to allow counter interruption
+        # it can be 'private' if the hardware cannot be interrupted
+        #           'interruptable' if a counter is running that can be automatically stopped
+        #        or 'interrupted' if a scanner overstepped a counter
+        self.sharing_status = 'private'
 
         config = self.getConfiguration()
 
@@ -414,13 +424,22 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
         @return int: error code (0:OK, -1:error)
         """
 
-        if not scanner and self._clock_daq_task is not None:
-            self.log.error('Another counter clock is already running, close this one first.')
-            return -1
+        if not scanner:
+            if self._clock_daq_task is not None:
+                self.log.error('Another counter clock is already running, close this one first.')
+                return -1
+            elif self.sharing_status == 'private':
+                self.sharing_status = 'interruptable'
 
         if scanner and self._scanner_clock_daq_task is not None:
-            self.log.error('Another scanner clock is already running, close this one first.')
-            return -1
+            # Check if the current task can be interrupted
+            if self.sharing_status != 'interruptable':
+                self.log.error('Another scanner clock is already running, close this one first.')
+                return -1
+            else:
+                self.sigOverstepCounter.emit()
+                self.sharing_status = 'interrupted'
+                self.log.warning('Existing counter clock interrupted.')
 
         # Create handle for task, this task will generate pulse signal for
         # photon counting
@@ -780,11 +799,17 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
             # After stopping delete all the configuration of the clock:
             daq.DAQmxClearTask(my_task)
 
-            # Set the task handle to None as a safety
+            # Set the task handle to None as a safety and manage interrupted tasks
             if scanner:
                 self._scanner_clock_daq_task = None
+                if self.sharing_status == 'interrupted':
+                    self.sigReleaseCounter.emit()
+                    self.sharing_status = 'interruptable'
+                    self.log.warning('Previously interrupted counter clock will restart.')
             else:
                 self._clock_daq_task = None
+                if self.sharing_status == 'interruptable':
+                    self.sharing_status = 'private'
         except:
             self.log.exception('Could not close clock.')
             return -1

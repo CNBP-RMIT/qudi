@@ -19,6 +19,7 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+from qtpy import QtCore
 import numpy as np
 
 import random
@@ -35,6 +36,10 @@ class SlowCounterDummy(Base, SlowCounterInterface):
     """This is the Interface class to define the controls for the simple
     microwave hardware.
     """
+
+    sigOverstepCounter = QtCore.Signal()
+    sigReleaseCounter = QtCore.Signal()
+
     _modclass = 'SlowCounterDummy'
     _modtype = 'hardware'
 

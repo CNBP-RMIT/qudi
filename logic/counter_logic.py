@@ -123,11 +123,14 @@ class CounterLogic(GenericLogic):
 
         # Flag to stop the loop
         self.stopRequested = False
+        self._interrupted = False
 
         self._saving_start_time = time.time()
 
         # connect signals
         self.sigCountDataNext.connect(self.count_loop_body, QtCore.Qt.QueuedConnection)
+        self._counting_device.sigOverstepCounter.connect(self.interruptCount, QtCore.Qt.QueuedConnection)
+        self._counting_device.sigReleaseCounter.connect(self.restartCount, QtCore.Qt.QueuedConnection)
         return
 
     def on_deactivate(self):
@@ -379,6 +382,20 @@ class CounterLogic(GenericLogic):
                 'FINITE_GATED'  = finite measurement with predefined number of samples
         """
         return self._counting_mode
+
+    def restartCount(self):
+        """ Start the counter only if it was interrupted before.
+        """
+        if self._interrupted:
+            self._interrupted = False
+            self.startCount()
+
+    def interruptCount(self):
+        """ Stop the counter if it was running.
+        """
+        if self.getState() == 'locked':
+            self._interrupted = True
+        self.stopCount()
 
     # FIXME: Not implemented for self._counting_mode == 'gated'
     def startCount(self):

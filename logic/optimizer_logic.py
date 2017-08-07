@@ -232,6 +232,7 @@ class OptimizerLogic(GenericLogic):
         self._optimization_step = 0
         self.check_optimization_sequence()
 
+
         scanner_status = self.start_scanner()
         if scanner_status < 0:
             self.sigRefocusFinished.emit(

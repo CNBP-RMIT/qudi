@@ -29,6 +29,7 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
     """ This interfuse produces a Z correction corresponding to a tilted surface.
     """
 
+
     _modclass = 'ScannerTiltInterfuse'
     _modtype = 'interfuse'
 
@@ -47,6 +48,7 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
         self.tiltcorrection = False
         self.tilt_reference_x = 0
         self.tilt_reference_y = 0
+
 
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
