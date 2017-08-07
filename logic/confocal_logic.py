@@ -843,7 +843,7 @@ class ConfocalLogic(GenericLogic):
             self.stop_scanning()
             self.signal_scan_lines_next.emit()
 
-    def save_xy_data(self, colorscale_range=None, percentile_range=None, save_raw_data=True):
+    def save_xy_data(self, colorscale_range=None, percentile_range=None, save_raw_data=False):
         """ Save the current confocal xy data to file.
 
         Two files are created.  The first is the imagedata, which has a text-matrix of count values
@@ -955,7 +955,7 @@ class ConfocalLogic(GenericLogic):
         self.signal_xy_data_saved.emit()
         return
 
-    def save_depth_data(self, colorscale_range=None, percentile_range=None, save_raw_data=True):
+    def save_depth_data(self, colorscale_range=None, percentile_range=None, save_raw_data=False):
         """ Save the current confocal depth data to file.
 
         Two files are created.  The first is the imagedata, which has a text-matrix of count values

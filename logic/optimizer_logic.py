@@ -22,6 +22,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 from qtpy import QtCore
 from collections import OrderedDict
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import time
 
@@ -72,6 +73,7 @@ class OptimizerLogic(GenericLogic):
     sigClockFrequencyChanged = QtCore.Signal(int)
     sigPositionChanged = QtCore.Signal(float, float, float)
     signal_optimizer_data_saved = QtCore.Signal()
+    signal_draw_figure_completed = QtCore.Signal()
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -698,10 +700,20 @@ class OptimizerLogic(GenericLogic):
         parameters['Return Slowness (Steps during retrace line)'] = self.return_slowness
 
         # Prepare a figure to be saved
-        fig, ax = plt.subplots()
-        ax.imshow(self.xy_refocus_image[:, :, 3],
-                  cmap=plt.get_cmap('inferno'),
-                  interpolation='none')
+        image_extent = [self._X_values[0],
+                        self._X_values[-1],
+                        self._Y_values[0],
+                        self._Y_values[-1]]
+        axes = ['X', 'Y']
+        crosshair_pos = [self.optim_pos_x, self.optim_pos_y]
+
+        figs = {ch: self.draw_figure(data=self.xy_refocus_image[:, :, 3 + n],
+                                     image_extent=image_extent,
+                                     scan_axis=axes,
+                                     cbar_range=colorscale_range,
+                                     percentile_range=percentile_range,
+                                     crosshair_pos=crosshair_pos)
+                for n, ch in enumerate(self.get_scanner_count_channels())}
 
         # Save the image data and figure
         for n, ch in enumerate(self.get_scanner_count_channels()):
@@ -722,7 +734,7 @@ class OptimizerLogic(GenericLogic):
                                        filelabel=filelabel,
                                        fmt='%.6e',
                                        delimiter='\t',
-                                       plotfig=fig)
+                                       plotfig=figs[ch])
 
             # Save the optimizer Z line
             # Prepare the metadata parameters
@@ -730,8 +742,8 @@ class OptimizerLogic(GenericLogic):
 
             parametersZ['Z image min (m)'] = self._zimage_Z_values[0]
             parametersZ['Z image max (m)'] = self._zimage_Z_values[-1]
-            parametersZ['Z image range (m)'] = self._zimage_Z_values[-1] - \
-                                              self._zimage_Z_values[0]
+            parametersZ['Z image range (m)'] = \
+                self._zimage_Z_values[-1] - self._zimage_Z_values[0]
 
             parametersZ[
                 'Z resolution (samples per range)'] = self.optimizer_Z_res
@@ -763,3 +775,140 @@ class OptimizerLogic(GenericLogic):
         self.log.debug('Optimizer Image saved.')
         self.signal_optimizer_data_saved.emit() # Who does even catch this for the confocal scan?
         return
+
+    def draw_figure(self, data, image_extent, scan_axis=None, cbar_range=None, percentile_range=None,  crosshair_pos=None):
+        """ Create a 2-D color map figure of the scan image.
+
+        @param: array data: The NxM array of count values from a scan with NxM pixels.
+
+        @param: list image_extent: The scan range in the form [hor_min, hor_max, ver_min, ver_max]
+
+        @param: list axes: Names of the horizontal and vertical axes in the image
+
+        @param: list cbar_range: (optional) [color_scale_min, color_scale_max].  If not supplied then a default of
+                                 data_min to data_max will be used.
+
+        @param: list percentile_range: (optional) Percentile range of the chosen cbar_range.
+
+        @param: list crosshair_pos: (optional) crosshair position as [hor, vert] in the chosen image axes.
+
+        @return: fig fig: a matplotlib figure object to be saved to file.
+        """
+        if scan_axis is None:
+            scan_axis = ['X', 'Y']
+
+        # If no colorbar range was given, take full range of data
+        if cbar_range is None:
+            cbar_range = [np.min(data), np.max(data)]
+
+        # Scale color values using SI prefix
+        prefix = ['', 'k', 'M', 'G']
+        prefix_count = 0
+        image_data = data
+        draw_cb_range = np.array(cbar_range)
+        image_dimension = image_extent.copy()
+
+        while draw_cb_range[1] > 1000:
+            image_data = image_data/1000
+            draw_cb_range = draw_cb_range/1000
+            prefix_count = prefix_count + 1
+
+        c_prefix = prefix[prefix_count]
+
+
+        # Scale axes values using SI prefix
+        axes_prefix = ['', 'm', r'$\mathrm{\mu}$', 'n']
+        x_prefix_count = 0
+        y_prefix_count = 0
+
+        while np.abs(image_dimension[1]-image_dimension[0]) < 1:
+            image_dimension[0] = image_dimension[0] * 1000.
+            image_dimension[1] = image_dimension[1] * 1000.
+            x_prefix_count = x_prefix_count + 1
+
+        while np.abs(image_dimension[3] - image_dimension[2]) < 1:
+            image_dimension[2] = image_dimension[2] * 1000.
+            image_dimension[3] = image_dimension[3] * 1000.
+            y_prefix_count = y_prefix_count + 1
+
+        x_prefix = axes_prefix[x_prefix_count]
+        y_prefix = axes_prefix[y_prefix_count]
+
+        # Use qudi style
+        plt.style.use(self._save_logic.mpl_qd_style)
+
+        # Create figure
+        fig, ax = plt.subplots()
+
+        # Create image plot
+        cfimage = ax.imshow(image_data,
+                            cmap=plt.get_cmap('inferno'), # reference the right place in qd
+                            origin="lower",
+                            vmin=draw_cb_range[0],
+                            vmax=draw_cb_range[1],
+                            interpolation='none',
+                            extent=image_dimension
+                            )
+
+        ax.set_aspect(1)
+        ax.set_xlabel(scan_axis[0] + ' position (' + x_prefix + 'm)')
+        ax.set_ylabel(scan_axis[1] + ' position (' + y_prefix + 'm)')
+        ax.spines['bottom'].set_position(('outward', 10))
+        ax.spines['left'].set_position(('outward', 10))
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.get_xaxis().tick_bottom()
+        ax.get_yaxis().tick_left()
+
+        # draw the crosshair position if defined
+        if crosshair_pos is not None:
+            trans_xmark = mpl.transforms.blended_transform_factory(
+                ax.transData,
+                ax.transAxes)
+
+            trans_ymark = mpl.transforms.blended_transform_factory(
+                ax.transAxes,
+                ax.transData)
+
+            ax.annotate('', xy=(crosshair_pos[0]*np.power(1000,x_prefix_count), 0),
+                        xytext=(crosshair_pos[0]*np.power(1000,x_prefix_count), -0.01), xycoords=trans_xmark,
+                        arrowprops=dict(facecolor='#17becf', shrink=0.05),
+                        )
+
+            ax.annotate('', xy=(0, crosshair_pos[1]*np.power(1000,y_prefix_count)),
+                        xytext=(-0.01, crosshair_pos[1]*np.power(1000,y_prefix_count)), xycoords=trans_ymark,
+                        arrowprops=dict(facecolor='#17becf', shrink=0.05),
+                        )
+
+        # Draw the colorbar
+        cbar = plt.colorbar(cfimage, shrink=0.8)#, fraction=0.046, pad=0.08, shrink=0.75)
+        cbar.set_label('Fluorescence (' + c_prefix + 'c/s)')
+
+        # remove ticks from colorbar for cleaner image
+        cbar.ax.tick_params(which=u'both', length=0)
+
+        # If we have percentile information, draw that to the figure
+        if percentile_range is not None:
+            cbar.ax.annotate(str(percentile_range[0]),
+                             xy=(-0.3, 0.0),
+                             xycoords='axes fraction',
+                             horizontalalignment='right',
+                             verticalalignment='center',
+                             rotation=90
+                             )
+            cbar.ax.annotate(str(percentile_range[1]),
+                             xy=(-0.3, 1.0),
+                             xycoords='axes fraction',
+                             horizontalalignment='right',
+                             verticalalignment='center',
+                             rotation=90
+                             )
+            cbar.ax.annotate('(percentile)',
+                             xy=(-0.3, 0.5),
+                             xycoords='axes fraction',
+                             horizontalalignment='right',
+                             verticalalignment='center',
+                             rotation=90
+                             )
+        self.signal_draw_figure_completed.emit() # Who does even catch this for the confocal scan?
+        return fig

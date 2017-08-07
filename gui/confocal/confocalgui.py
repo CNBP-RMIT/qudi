@@ -1808,13 +1808,13 @@ class ConfocalGui(GUIBase):
             high_centile = self._mw.xy_cb_high_percentile_DoubleSpinBox.value()
             pcile_range = [low_centile, high_centile]
 
-        self._scanning_logic.save_xy_data(colorscale_range=cb_range, percentile_range=pcile_range)
+        self._scanning_logic.save_xy_data(colorscale_range=cb_range, percentile_range=pcile_range, save_raw_data=self._sd.save_purePNG_checkBox.isChecked())
 
-        # TODO: find a way to produce raw image in savelogic.  For now it is saved here.
-        filepath = self._save_logic.get_path_for_module(module_name='Confocal')
-        filename = filepath + os.sep + time.strftime('%Y%m%d-%H%M-%S_confocal_xy_scan_raw_pixel_image')
-        if self._sd.save_purePNG_checkBox.isChecked():
-            self.xy_image.save(filename + '_raw.png')
+        # # TODO: find a way to produce raw image in savelogic.  For now it is saved here.
+        # filepath = self._save_logic.get_path_for_module(module_name='Confocal')
+        # filename = filepath + os.sep + time.strftime('%Y%m%d-%H%M-%S_confocal_xy_scan_raw_pixel_image')
+        # if self._sd.save_purePNG_checkBox.isChecked():
+        #     self.xy_image.save(filename + '_raw.png')
 
     def save_xy_scan_image(self):
         """ Save the image and according to that the data.
@@ -1836,13 +1836,13 @@ class ConfocalGui(GUIBase):
             high_centile = self._mw.depth_cb_high_percentile_DoubleSpinBox.value()
             pcile_range = [low_centile, high_centile]
 
-        self._scanning_logic.save_depth_data(colorscale_range=cb_range, percentile_range=pcile_range)
+        self._scanning_logic.save_depth_data(colorscale_range=cb_range, percentile_range=pcile_range, save_raw_data=self._sd.save_purePNG_checkBox.isChecked())
 
-        # TODO: find a way to produce raw image in savelogic.  For now it is saved here.
-        filepath = self._save_logic.get_path_for_module(module_name='Confocal')
-        filename = filepath + os.sep + time.strftime('%Y%m%d-%H%M-%S_confocal_depth_scan_raw_pixel_image')
-        if self._sd.save_purePNG_checkBox.isChecked():
-            self.depth_image.save(filename + '_raw.png')
+        # # TODO: find a way to produce raw image in savelogic.  For now it is saved here.
+        # filepath = self._save_logic.get_path_for_module(module_name='Confocal')
+        # filename = filepath + os.sep + time.strftime('%Y%m%d-%H%M-%S_confocal_depth_scan_raw_pixel_image')
+        # if self._sd.save_purePNG_checkBox.isChecked():
+        #     self.depth_image.save(filename + '_raw.png')
 
     def save_depth_scan_image(self):
         """ Save the image and according to that the data.
