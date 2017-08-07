@@ -186,7 +186,6 @@ class ConfocalGui(GUIBase):
 
     # declare connectors
     confocallogic1 = Connector(interface='ConfocalLogic')
-    savelogic = Connector(interface='SaveLogic')
     optimizerlogic1 = Connector(interface='OptimizerLogic')
 
     # config options for gui
@@ -216,7 +215,6 @@ class ConfocalGui(GUIBase):
 
         # Getting an access to all connectors:
         self._scanning_logic = self.get_connector('confocallogic1')
-        self._save_logic = self.get_connector('savelogic')
         self._optimizer_logic = self.get_connector('optimizerlogic1')
 
         self._hardware_state = True
@@ -640,6 +638,7 @@ class ConfocalGui(GUIBase):
         self._mw.action_optimizer_settings.triggered.connect(self.menu_optimizer_settings)
         self._mw.actionSave_XY_Scan.triggered.connect(self.save_xy_scan_data)
         self._mw.actionSave_Depth_Scan.triggered.connect(self.save_depth_scan_data)
+        self._mw.actionSave_Optimized_Scan.triggered.connect(self.save_optimized_scan_data)
 
         # Configure and connect the zoom actions with the desired buttons and
         # functions if
@@ -1853,6 +1852,10 @@ class ConfocalGui(GUIBase):
         specific task to save the used PlotObject.
         """
         self.log.warning('Deprecated, use normal save method instead!')
+
+    def save_optimized_scan_data(self):
+        """ Run the save routine from the logic to save the xy confocal data."""
+        self._optimizer_logic.save_optimized_data()
 
     def switch_hardware(self):
         """ Switches the hardware state. """

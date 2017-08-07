@@ -30,6 +30,7 @@ import sys
 import time
 import datetime
 import numpy as np
+from qtpy.QtWidgets import QFileDialog
 
 from collections import OrderedDict
 from core.module import ConfigOption
@@ -128,6 +129,7 @@ class SaveLogic(GenericLogic):
     _win_data_dir = ConfigOption('win_data_directory', 'C:/Data/')
     _unix_data_dir = ConfigOption('unix_data_directory', 'Data')
     log_into_daily_directory = ConfigOption('log_into_daily_directory', False, missing='warn')
+    save_into_default_directory = ConfigOption('save_into_default_directory', True)
 
     # Matplotlib style definition for saving plots
     mpl_qd_style = {
@@ -396,14 +398,14 @@ class SaveLogic(GenericLogic):
                           ''.format(filepath))
 
         # create filelabel if none has been passed
-        if filelabel is None:
-            filelabel = module_name
         if self.active_poi_name != '':
             filelabel = self.active_poi_name.replace(' ', '_') + '_' + filelabel
 
         # determine proper unique filename to save if none has been passed
         if filename is None:
-            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.dat')
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + module_name + '.dat')
+        if filelabel is not None:
+            filename = filename[:-4] + '_' + filelabel + '.dat'
 
         # Check format specifier.
         if not isinstance(fmt, str) and len(fmt) != len(data):
@@ -546,6 +548,8 @@ class SaveLogic(GenericLogic):
             self.log.debug('Time needed to save data: {0:.2f}s'.format(time.time()-start_time))
             #----------------------------------------------------------------------------------
 
+        self.log.info('File {0} saved in {1} folder'.format(filename, filepath))
+
     def save_array_as_text(self, data, filename, filepath='', fmt='%.15e', header='',
                            delimiter='\t', comments='#', append=False):
         """
@@ -630,3 +634,23 @@ class SaveLogic(GenericLogic):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
         return dir_path
+
+    def get_path_from_dialog(self):
+        """
+        Methods that open the os saving dialog box and return user-defined filename and path.
+
+        @return string, string: user-defined saving folder and user-defined saving name
+        """
+        new_filepath = QFileDialog.getSaveFileName(
+            None, str("Save data"), self.data_dir,
+            str("Data files (*.dat)"))
+        if not new_filepath[0]:
+            self.log.warning('Saving aborted because no file was '
+                             'specified. Please save your data again.')
+            return -1
+        else:
+            (filepath, filename) = os.path.split(new_filepath[0])
+            # Remember the saving folder as the default one next time
+            # something else is saved
+            self.data_dir = filepath
+        return filepath, filename

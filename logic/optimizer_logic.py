@@ -20,7 +20,9 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 from qtpy import QtCore
+from collections import OrderedDict
 import numpy as np
+import matplotlib.pyplot as plt
 import time
 
 from logic.generic_logic import GenericLogic
@@ -39,6 +41,7 @@ class OptimizerLogic(GenericLogic):
     # declare connectors
     confocalscanner1 = Connector(interface='ConfocalScannerInterface')
     fitlogic = Connector(interface='FitLogic')
+    savelogic = Connector(interface='SaveLogic')
 
     # declare status vars
     _clock_frequency = StatusVar('clock_frequency', 50)
@@ -68,6 +71,7 @@ class OptimizerLogic(GenericLogic):
     sigRefocusFinished = QtCore.Signal(str, list)
     sigClockFrequencyChanged = QtCore.Signal(int)
     sigPositionChanged = QtCore.Signal(float, float, float)
+    signal_optimizer_data_saved = QtCore.Signal()
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
@@ -88,6 +92,7 @@ class OptimizerLogic(GenericLogic):
         """
         self._scanning_device = self.get_connector('confocalscanner1')
         self._fit_logic = self.get_connector('fitlogic')
+        self._save_logic = self.get_connector('savelogic')
 
         # Reads in the maximal scanning range. The unit of that scan range is micrometer!
         self.x_range = self._scanning_device.get_position_range()[0]
@@ -654,3 +659,107 @@ class OptimizerLogic(GenericLogic):
             self._current_z = z
         self.sigPositionChanged.emit(self._current_x, self._current_y, self._current_z)
 
+    def save_optimized_data(self, colorscale_range=None, percentile_range=None, save_raw_data=True):
+        """ Save the current confocal xy data to file.
+
+        Two files are created.  The first is the imagedata, which has a text-matrix of count values
+        corresponding to the pixel matrix of the image.  Only count-values are saved here.
+
+        The second file saves the full raw data with x, y, z, and counts at every pixel.
+
+        A figure is also saved.
+
+        @param: list colorscale_range (optional) The range [min, max] of the display colour scale (for the figure)
+
+        @param: list percentile_range (optional) The percentile range [min, max] of the color scale
+        """
+        if not self._save_logic.save_into_default_directory:
+            filepath, filename = self._save_logic.get_path_from_dialog()
+        else:
+            filepath = self._save_logic.get_path_for_module('Optimizer')
+            filename = None
+
+        # Save the optimizer XY map
+        # Prepare the metadata parameters
+        parameters = OrderedDict()
+
+        parameters['X image min (m)'] = self._X_values[0]
+        parameters['X image max (m)'] = self._X_values[-1]
+        parameters['X image range (m)'] = self._X_values[-1] - self._X_values[0]
+
+        parameters['Y image min'] = self._Y_values[0]
+        parameters['Y image max'] = self._Y_values[-1]
+        parameters['Y image range'] = self._Y_values[-1] - self._Y_values[0]
+
+        parameters['XY resolution (samples per range)'] = self.optimizer_XY_res
+        parameters['XY Image at z position (m)'] = self._Z_values[0]
+
+        parameters['Clock frequency of scanner (Hz)'] = self._clock_frequency
+        parameters['Return Slowness (Steps during retrace line)'] = self.return_slowness
+
+        # Prepare a figure to be saved
+        fig, ax = plt.subplots()
+        ax.imshow(self.xy_refocus_image[:, :, 3],
+                  cmap=plt.get_cmap('inferno'),
+                  interpolation='none')
+
+        # Save the image data and figure
+        for n, ch in enumerate(self.get_scanner_count_channels()):
+            # data for the text-array "image":
+            image_data = OrderedDict()
+            image_data['Optimizer XY scan image data without axis.\n'
+                'The upper left entry represents the signal at the upper left pixel position.\n'
+                'A pixel-line in the image corresponds to a row '
+                'of entries where the Signal is in counts/s:'] = self.xy_refocus_image[:, :, 3 + n]
+
+            filelabel = 'XYscan'
+            if len(self.get_scanner_count_channels()) > 1:
+                filelabel = filelabel + '_{0}'.format(ch.replace('/', ''))
+            self._save_logic.save_data(image_data,
+                                       filepath=filepath,
+                                       filename=filename,
+                                       parameters=parameters,
+                                       filelabel=filelabel,
+                                       fmt='%.6e',
+                                       delimiter='\t',
+                                       plotfig=fig)
+
+            # Save the optimizer Z line
+            # Prepare the metadata parameters
+            parametersZ = OrderedDict()
+
+            parametersZ['Z image min (m)'] = self._zimage_Z_values[0]
+            parametersZ['Z image max (m)'] = self._zimage_Z_values[-1]
+            parametersZ['Z image range (m)'] = self._zimage_Z_values[-1] - \
+                                              self._zimage_Z_values[0]
+
+            parametersZ[
+                'Z resolution (samples per range)'] = self.optimizer_Z_res
+            parametersZ['Z image at x position (m)'] = self.optim_pos_x
+            parametersZ['Z image at y position (m)'] = self.optim_pos_y
+
+            parametersZ[
+                'Clock frequency of scanner (Hz)'] = self._clock_frequency
+            parametersZ[
+                'Return Slowness (Steps during retrace line)'] = self.return_slowness
+
+            # Save the plot data
+            image_dataZ = OrderedDict()
+            image_dataZ['z position (m)'] = self._zimage_Z_values
+            for n, ch in enumerate(self.get_scanner_count_channels()):
+                # data for the text-array "image":
+                image_dataZ['Signal{0} (counts/s)'.format(ch.replace('/', ''))] \
+                    = self.z_refocus_line[:, n]
+
+            filelabelZ = 'Zscan'
+            self._save_logic.save_data(image_dataZ,
+                                       filepath=filepath,
+                                       filename=filename,
+                                       parameters=parametersZ,
+                                       filelabel=filelabelZ,
+                                       fmt='%.6e',
+                                       delimiter='\t')
+
+        self.log.debug('Optimizer Image saved.')
+        self.signal_optimizer_data_saved.emit() # Who does even catch this for the confocal scan?
+        return
