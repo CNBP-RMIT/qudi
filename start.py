@@ -48,7 +48,14 @@ else:
 argv = [sys.executable, '-m', 'core'] + sys.argv[1:]
 
 while True:
-    process = subprocess.Popen(argv, close_fds=False, env=myenv, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr, shell=False)
+    process = subprocess.Popen(
+        argv,
+        close_fds=False,
+        env=myenv,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        shell=False)
     if sys.platform == 'win32':
         # Attach the interrupt event to the Popen objet so it can be used later.
         process.win32_interrupt_event = interrupt_event
@@ -65,6 +72,9 @@ while True:
         elif retval == -6:
             # called if QFatal occurs
             break
+        elif retval == 4:
+            print('Import Error: Qudi could not be started due to missing packages.')
+            sys.exit(retval)
         else:
             print('Unexpected return value {0}. Exiting.'.format(retval))
             sys.exit(retval)
