@@ -20,29 +20,30 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+import datetime
+import inspect
+import numpy as np
+import os
+import pyqtgraph as pg
+import re
+
+
+from collections import OrderedDict
+from core.module import Connector, StatusVar
+from core.util import units
+from core.util.mutex import Mutex
+from gui.colordefs import QudiPalettePale as palette
+from gui.colordefs import QudiPalette as palettedark
+from gui.fitsettings import FitSettingsDialog, FitSettingsComboBox
+from gui.guibase import GUIBase
+from gui.pulsed.pulse_editors import BlockEditor, BlockOrganizer, SequenceEditor
+#from gui.pulsed.pulse_editor import PulseEditor
+from logic.sampling_functions import SamplingFunctions
 from qtpy import QtGui
 from qtpy import QtCore
 from qtpy import QtWidgets
 from qtpy import uic
-import numpy as np
-import os
-from collections import OrderedDict
-import pyqtgraph as pg
-import re
-import inspect
-import datetime
-
-
-from gui.guibase import GUIBase
-from gui.colordefs import QudiPalettePale as palette
-from gui.colordefs import QudiPalette as palettedark
 from qtwidgets.scientific_spinbox import ScienDSpinBox, ScienSpinBox
-#from gui.pulsed.pulse_editor import PulseEditor
-from core.util.mutex import Mutex
-from core.util import units
-from gui.pulsed.pulse_editors import BlockEditor, BlockOrganizer, SequenceEditor
-from logic.sampling_functions import SamplingFunctions
-from gui.fitsettings import FitSettingsDialog, FitSettingsComboBox
 
 
 #FIXME: Display the Pulse
@@ -156,28 +157,30 @@ class PulsedMeasurementGui(GUIBase):
     _modtype = 'gui'
 
     ## declare connectors
-    _connectors = {'pulsedmasterlogic': 'PulsedMasterLogic',
-           'savelogic': 'SaveLogic'}
+    pulsedmasterlogic = Connector(interface='PulsedMasterLogic')
+    savelogic = Connector(interface='SaveLogic')
+
+    # status var
+    _ana_param_x_axis_name_text = StatusVar('ana_param_x_axis_name_LineEdit', 'Tau')
+    _ana_param_x_axis_unit_text = StatusVar('ana_param_x_axis_unit_LineEdit', 's')
+    _ana_param_y_axis_name_text = StatusVar('ana_param_y_axis_name_LineEdit', 'Normalized Signal')
+    _ana_param_y_axis_unit_text = StatusVar('ana_param_y_axis_unit_LineEdit', '')
+    _ana_param_second_plot_x_axis_name_text = StatusVar('ana_param_second_plot_x_axis_name_LineEdit', 'Frequency')
+    _ana_param_second_plot_x_axis_unit_text = StatusVar('ana_param_second_plot_x_axis_unit_LineEdit', 'Hz')
+    _ana_param_second_plot_y_axis_name_text = StatusVar('ana_param_second_plot_y_axis_name_LineEdit', 'Ft Signal')
+    _ana_param_second_plot_y_axis_unit_text = StatusVar('ana_param_second_plot_y_axis_unit_LineEdit', '')
+
+    _ana_param_errorbars = StatusVar('ana_param_errorbars_CheckBox', False)
+    _second_plot_ComboBox_text = StatusVar('second_plot_ComboBox_text', '')
+
+    _predefined_methods_to_show = StatusVar('predefined_methods_to_show', [])
+    _functions_to_show = StatusVar('functions_to_show', [])
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{}: {}'.format(key,config[key]))
-
-    def on_activate(self, e=None):
+    def on_activate(self):
         """ Initialize, connect and configure the pulsed measurement GUI.
-
-        @param object e: Fysom.event object from Fysom class.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
 
         Establish general connectivity and activate the different tabs of the
         GUI.
@@ -199,32 +202,29 @@ class PulsedMeasurementGui(GUIBase):
         self._mw.tabWidget.addTab(self._pm, 'Predefined Methods')
 
         self.setup_toolbar()
-        self._activate_analysis_settings_ui(e)
-        self._activate_analysis_ui(e)
+        self._activate_analysis_settings_ui()
+        self._activate_analysis_ui()
         self.setup_extraction_ui()
 
-        self._activate_generator_settings_ui(e)
-        self._activate_pulse_generator_ui(e)
+        self._activate_generator_settings_ui()
+        self._activate_pulse_generator_ui()
 
         self.show()
 
         self._pa.ext_control_mw_freq_DoubleSpinBox.setMaximum(999999999999)
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Undo the Definition, configuration and initialisation of the pulsed
             measurement GUI.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
 
         This deactivation disconnects all the graphic modules, which were
         connected in the initUI method.
         """
-        self._deactivate_analysis_settings_ui(e)
-        self._deactivate_analysis_ui(e)
+        self._deactivate_analysis_settings_ui()
+        self._deactivate_analysis_ui()
 
-        self._deactivate_generator_settings_ui(e)
-        self._deactivate_pulse_generator_ui(e)
+        self._deactivate_generator_settings_ui()
+        self._deactivate_pulse_generator_ui()
 
         self._mw.close()
 
@@ -237,12 +237,9 @@ class PulsedMeasurementGui(GUIBase):
     ###########################################################################
     ###   Methods related to Settings for the 'Pulse Generator' tab:        ###
     ###########################################################################
-    def _activate_generator_settings_ui(self, e):
+    def _activate_generator_settings_ui(self):
         """ Initialize, connect and configure the pulse generator settings to be displayed in the
         editor.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
         self._gs = GeneratorSettingsDialog()
         self._gs.accepted.connect(self.apply_generator_settings)
@@ -251,25 +248,15 @@ class PulsedMeasurementGui(GUIBase):
             self.generator_settings_changed, QtCore.Qt.QueuedConnection)
         self._gs.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
             self.apply_generator_settings)
-        # Here the names of all function to show are stored
-        self._functions_to_show = []
 
         # here are all the names of the predefined methods are saved.
         self._predefined_methods_list = []
-        # here all names of the chosen predefined methods are saved
-        self._predefined_methods_to_show = []
         # create a config for the predefined methods:
         self._pm_cfg = PredefinedMethodsConfigDialog()
         self._pm_cfg.accepted.connect(self.apply_predefined_methods_config)
         self._pm_cfg.rejected.connect(self.keep_former_predefined_methods_config)
         self._pm_cfg.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
             self.apply_predefined_methods_config)
-
-
-        if 'predefined_methods_to_show' in self._statusVariables:
-            self._predefined_methods_to_show = self._statusVariables['predefined_methods_to_show']
-        if 'functions_to_show' in self._statusVariables:
-            self._functions_to_show = self._statusVariables['functions_to_show']
 
         # connect the menu to the actions:
         self._mw.action_Settings_Block_Generation.triggered.connect(self.show_generator_settings)
@@ -281,15 +268,9 @@ class PulsedMeasurementGui(GUIBase):
         self._create_function_config()
         return
 
-    def _deactivate_generator_settings_ui(self, e):
+    def _deactivate_generator_settings_ui(self):
         """ Disconnects the configuration of the Settings for the 'Pulse Generator' Tab.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
-        self._statusVariables['predefined_methods_to_show'] = self._predefined_methods_to_show
-        self._statusVariables['functions_to_show'] = self._functions_to_show
-
         self._gs.accepted.disconnect()
         self._gs.rejected.disconnect()
         self._gs.sampled_file_format_comboBox.currentIndexChanged.disconnect()
@@ -520,11 +501,8 @@ class PulsedMeasurementGui(GUIBase):
     ###########################################################################
     ###   Methods related to Tab 'Pulse Generator' in the Pulsed Window:    ###
     ###########################################################################
-    def _activate_pulse_generator_ui(self, e):
+    def _activate_pulse_generator_ui(self):
         """ Initialize, connect and configure the 'Pulse Generator' Tab.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
         # connect signals of input widgets
         self._pg.gen_sample_freq_DSpinBox.editingFinished.connect(self.generator_settings_changed, QtCore.Qt.QueuedConnection)
@@ -585,11 +563,8 @@ class PulsedMeasurementGui(GUIBase):
         self._pulsed_master_logic.request_generator_init_values()
         return
 
-    def _deactivate_pulse_generator_ui(self, e):
+    def _deactivate_pulse_generator_ui(self):
         """ Disconnects the configuration for 'Pulse Generator Tab.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
         # disconnect signals of input widgets
         self._pg.gen_sample_freq_DSpinBox.editingFinished.disconnect()
@@ -1132,75 +1107,64 @@ class PulsedMeasurementGui(GUIBase):
     ###        Methods related to Settings for the 'Analysis' Tab:          ###
     ###########################################################################
     #FIXME: Implement the setting for 'Analysis' tab.
-    def _activate_analysis_settings_ui(self, e):
+    def _activate_analysis_settings_ui(self):
         """ Initialize, connect and configure the Settings of 'Analysis' Tab.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
         self._as = AnalysisSettingDialog()
         self._as.accepted.connect(self.update_analysis_settings)
         self._as.rejected.connect(self.keep_former_analysis_settings)
         self._as.buttonBox.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(self.update_analysis_settings)
 
-        if 'ana_param_x_axis_name_LineEdit' in self._statusVariables:
-            self._as.ana_param_x_axis_name_LineEdit.setText(self._statusVariables['ana_param_x_axis_name_LineEdit'])
-        if 'ana_param_x_axis_unit_LineEdit' in self._statusVariables:
-            self._as.ana_param_x_axis_unit_LineEdit.setText(self._statusVariables['ana_param_x_axis_unit_LineEdit'])
-        if 'ana_param_y_axis_name_LineEdit' in self._statusVariables:
-            self._as.ana_param_y_axis_name_LineEdit.setText(self._statusVariables['ana_param_y_axis_name_LineEdit'])
-        if 'ana_param_y_axis_unit_LineEdit' in self._statusVariables:
-            self._as.ana_param_y_axis_unit_LineEdit.setText(self._statusVariables['ana_param_y_axis_unit_LineEdit'])
-        if 'ana_param_second_plot_x_axis_name_LineEdit' in self._statusVariables:
-            self._as.ana_param_second_plot_x_axis_name_LineEdit.setText(self._statusVariables['ana_param_second_plot_x_axis_name_LineEdit'])
-        if 'ana_param_second_plot_x_axis_unit_LineEdit' in self._statusVariables:
-            self._as.ana_param_second_plot_x_axis_unit_LineEdit.setText(self._statusVariables['ana_param_second_plot_x_axis_unit_LineEdit'])
-        if 'ana_param_second_plot_y_axis_name_LineEdit' in self._statusVariables:
-            self._as.ana_param_second_plot_y_axis_name_LineEdit.setText(self._statusVariables['ana_param_second_plot_y_axis_name_LineEdit'])
-        if 'ana_param_second_plot_y_axis_unit_LineEdit' in self._statusVariables:
-            self._as.ana_param_second_plot_y_axis_unit_LineEdit.setText(self._statusVariables['ana_param_second_plot_y_axis_unit_LineEdit'])
+        self._as.ana_param_x_axis_name_LineEdit.setText(self._ana_param_x_axis_name_text)
+        self._as.ana_param_x_axis_unit_LineEdit.setText(self._ana_param_x_axis_unit_text)
+        self._as.ana_param_y_axis_name_LineEdit.setText(self._ana_param_y_axis_name_text)
+        self._as.ana_param_y_axis_unit_LineEdit.setText(self._ana_param_y_axis_unit_text)
+        self._as.ana_param_second_plot_x_axis_name_LineEdit.setText(self._ana_param_second_plot_x_axis_name_text)
+        self._as.ana_param_second_plot_x_axis_unit_LineEdit.setText(self._ana_param_second_plot_x_axis_unit_text)
+        self._as.ana_param_second_plot_y_axis_name_LineEdit.setText(self._ana_param_second_plot_y_axis_name_text)
+        self._as.ana_param_second_plot_y_axis_unit_LineEdit.setText(self._ana_param_second_plot_y_axis_unit_text)
         self._as.ana_param_couple_settings_checkBox.setChecked(self._pulsed_master_logic.couple_generator_hw)
         self.update_analysis_settings()
         return
 
-    def _deactivate_analysis_settings_ui(self, e):
+    def _deactivate_analysis_settings_ui(self):
         """ Disconnects the configuration of the Settings for 'Analysis' Tab.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
-        self._statusVariables['ana_param_x_axis_name_LineEdit'] = self._as.ana_param_x_axis_name_LineEdit.text()
-        self._statusVariables['ana_param_x_axis_unit_LineEdit'] = self._as.ana_param_x_axis_unit_LineEdit.text()
-        self._statusVariables['ana_param_y_axis_name_LineEdit'] = self._as.ana_param_y_axis_name_LineEdit.text()
-        self._statusVariables['ana_param_y_axis_unit_LineEdit'] = self._as.ana_param_y_axis_unit_LineEdit.text()
-        self._statusVariables['ana_param_second_plot_x_axis_name_LineEdit'] = self._as.ana_param_second_plot_x_axis_name_LineEdit.text()
-        self._statusVariables['ana_param_second_plot_x_axis_unit_LineEdit'] = self._as.ana_param_second_plot_x_axis_unit_LineEdit.text()
-        self._statusVariables['ana_param_second_plot_y_axis_name_LineEdit'] = self._as.ana_param_second_plot_y_axis_name_LineEdit.text()
-        self._statusVariables['ana_param_second_plot_y_axis_unit_LineEdit'] = self._as.ana_param_second_plot_y_axis_unit_LineEdit.text()
+        # FIXME: disconnect something
         return
 
     def update_analysis_settings(self):
         """ Apply the new settings """
+        self._ana_param_x_axis_name_text = self._as.ana_param_x_axis_name_LineEdit.text()
+        self._ana_param_x_axis_unit_text = self._as.ana_param_x_axis_unit_LineEdit.text()
+        self._ana_param_y_axis_name_text = self._as.ana_param_y_axis_name_LineEdit.text()
+        self._ana_param_y_axis_unit_text = self._as.ana_param_y_axis_unit_LineEdit.text()
+        self._ana_param_second_plot_x_axis_name_text = self._as.ana_param_second_plot_x_axis_name_LineEdit.text()
+        self._ana_param_second_plot_x_axis_unit_text = self._as.ana_param_second_plot_x_axis_unit_LineEdit.text()
+        self._ana_param_second_plot_y_axis_name_text = self._as.ana_param_second_plot_y_axis_name_LineEdit.text()
+        self._ana_param_second_plot_y_axis_unit_text = self._as.ana_param_second_plot_y_axis_unit_LineEdit.text()
+
         self._pa.pulse_analysis_PlotWidget.setLabel(
             axis='bottom',
-            text=self._as.ana_param_x_axis_name_LineEdit.text(),
-            units=self._as.ana_param_x_axis_unit_LineEdit.text())
+            text=self._ana_param_x_axis_name_text,
+            units=self._ana_param_x_axis_unit_text)
         self._pa.pulse_analysis_PlotWidget.setLabel(
             axis='left',
-            text=self._as.ana_param_y_axis_name_LineEdit.text(),
-            units=self._as.ana_param_y_axis_unit_LineEdit.text())
+            text=self._ana_param_y_axis_name_text,
+            units=self._ana_param_y_axis_unit_text)
         self._pa.pulse_analysis_second_PlotWidget.setLabel(
             axis='bottom',
-            text=self._as.ana_param_second_plot_x_axis_name_LineEdit.text(),
-            units=self._as.ana_param_second_plot_x_axis_unit_LineEdit.text())
+            text=self._ana_param_second_plot_x_axis_name_text,
+            units=self._ana_param_second_plot_x_axis_unit_text)
         self._pa.pulse_analysis_second_PlotWidget.setLabel(
             axis='left',
-            text=self._as.ana_param_second_plot_y_axis_name_LineEdit.text(),
-            units=self._as.ana_param_second_plot_y_axis_unit_LineEdit.text())
+            text=self._ana_param_second_plot_y_axis_name_text,
+            units=self._ana_param_second_plot_y_axis_unit_text)
         self._pe.measuring_error_PlotWidget.setLabel(
             axis='bottom',
-            text=self._as.ana_param_x_axis_name_LineEdit.text(),
-            units=self._as.ana_param_x_axis_unit_LineEdit.text())
+            text=self._ana_param_x_axis_name_text,
+            units=self._ana_param_x_axis_unit_text)
+
         couple_settings = self._as.ana_param_couple_settings_checkBox.isChecked()
         self._pulsed_master_logic.couple_generator_hw = couple_settings
         if couple_settings:
@@ -1214,8 +1178,8 @@ class PulsedMeasurementGui(GUIBase):
             self._pg.gen_sample_freq_DSpinBox.setEnabled(True)
             self._pg.gen_activation_config_ComboBox.setEnabled(True)
         # FIXME: Not very elegant
-        self._pulsed_master_logic._measurement_logic.fc.set_units([self._as.ana_param_x_axis_unit_LineEdit.text(),
-                                                                   self._as.ana_param_y_axis_unit_LineEdit.text()])
+        self._pulsed_master_logic._measurement_logic.fc.set_units(
+            [self._ana_param_x_axis_unit_text, self._ana_param_y_axis_unit_text])
         return
 
     def keep_former_analysis_settings(self):
@@ -1271,17 +1235,12 @@ class PulsedMeasurementGui(GUIBase):
         self._pe.laserpulses_PlotWidget.addItem(self.ref_end_line)
         self._pe.laserpulses_PlotWidget.setLabel('bottom', 'bins')
 
-    def _activate_analysis_ui(self, e):
+    def _activate_analysis_ui(self):
         """ Initialize, connect and configure the 'Analysis' Tab.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
-        if 'ana_param_errorbars_CheckBox' in self._statusVariables:
-            self._pa.ana_param_errorbars_CheckBox.setChecked(self._statusVariables['ana_param_errorbars_CheckBox'])
-        if 'second_plot_ComboBox_text' in self._statusVariables:
-            index = self._pa.second_plot_ComboBox.findText(self._statusVariables['second_plot_ComboBox_text'])
-            self._pa.second_plot_ComboBox.setCurrentIndex(index)
+        self._pa.ana_param_errorbars_CheckBox.setChecked(self._ana_param_errorbars)
+        index = self._pa.second_plot_ComboBox.findText(self._second_plot_ComboBox_text)
+        self._pa.second_plot_ComboBox.setCurrentIndex(index)
 
         self._pa.ana_param_invoke_settings_CheckBox.setChecked(
             self._pulsed_master_logic.invoke_settings)
@@ -1432,16 +1391,13 @@ class PulsedMeasurementGui(GUIBase):
         self._pulsed_master_logic.request_measurement_init_values()
         return
 
-    def _deactivate_analysis_ui(self, e):
+    def _deactivate_analysis_ui(self):
         """ Disconnects the configuration for 'Analysis' Tab.
-
-       @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
         self.measurement_run_stop_clicked(False)
 
-        self._statusVariables['ana_param_errorbars_CheckBox'] = self._pa.ana_param_errorbars_CheckBox.isChecked()
-        self._statusVariables['second_plot_ComboBox_text'] = self._pa.second_plot_ComboBox.currentText()
+        self._ana_param_errorbars = self._pa.ana_param_errorbars_CheckBox.isChecked()
+        self._second_plot_ComboBox_text = self._pa.second_plot_ComboBox.currentText()
 
         # disconnect signals
         self._pulsed_master_logic.sigSignalDataUpdated.disconnect()

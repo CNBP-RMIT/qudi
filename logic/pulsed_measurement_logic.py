@@ -26,6 +26,7 @@ import time
 import datetime
 import matplotlib.pyplot as plt
 
+from core.module import Connector, ConfigOption, StatusVar
 from core.util.mutex import Mutex
 from core.util.network import netobtain
 from logic.generic_logic import GenericLogic
@@ -39,18 +40,34 @@ class PulsedMeasurementLogic(GenericLogic):
     _modtype = 'logic'
 
     ## declare connectors
-    _connectors = {
-        'pulseanalysislogic': 'PulseAnalysisLogic',
-        'pulseextractionlogic': 'PulseExtractionLogic',
-        'fitlogic': 'FitLogic',
-        'savelogic': 'SaveLogic',
-        'fastcounter': 'FastCounterInterface',
-        'microwave': 'MWInterface',
-        'pulsegenerator': 'PulserInterface',
-    }
+    pulseanalysislogic = Connector(interface='PulseAnalysisLogic')
+    pulseextractionlogic = Connector(interface='PulseExtractionLogic')
+    fitlogic = Connector(interface='FitLogic')
+    savelogic = Connector(interface='SaveLogic')
+    fastcounter = Connector(interface='FastCounterInterface')
+    microwave = Connector(interface='MWInterface')
+    pulsegenerator = Connector(interface='PulserInterface')
 
-    sigSignalDataUpdated = QtCore.Signal(np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray,
-                                         np.ndarray, np.ndarray, np.ndarray)
+    # status vars
+    fast_counter_record_length = StatusVar(default=3.e-6)
+    sequence_length_s = StatusVar(default=100e-6)
+    fast_counter_binwidth = StatusVar(default=1e-9)
+    microwave_power = StatusVar(default=-30.0)
+    microwave_freq = StatusVar(default=2870e6)
+    use_ext_microwave = StatusVar(default=False)
+    current_channel_config_name = StatusVar(default='')
+    sample_rate = StatusVar(default=25e9)
+    analogue_amplitude =  StatusVar(default=dict())
+    interleave_on = StatusVar(default=False)
+    timer_interval = StatusVar(default=5)
+    alternating = StatusVar(default=False)
+    show_raw_data = StatusVar(default=False)
+    show_laser_index = StatusVar(default=0)
+
+    # signals
+    sigSignalDataUpdated = QtCore.Signal(np.ndarray, np.ndarray, np.ndarray,
+                                         np.ndarray, np.ndarray, np.ndarray,
+                                         np.ndarray, np.ndarray)
     sigLaserDataUpdated = QtCore.Signal(np.ndarray, np.ndarray)
     sigLaserToShowUpdated = QtCore.Signal(int, bool)
     sigElapsedTimeUpdated = QtCore.Signal(float, str)
@@ -73,13 +90,6 @@ class PulsedMeasurementLogic(GenericLogic):
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
-
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{0}: {1}'.format(key, config[key]))
-
         # microwave parameters
         self.use_ext_microwave = False
         self.microwave_power = -30.     # dbm  (always in SI!)
@@ -96,13 +106,13 @@ class PulsedMeasurementLogic(GenericLogic):
         self.laser_ignore_list = []
         self.number_of_lasers = 50
         self.sequence_length_s = 100e-6
-        self.loaded_asset_name = None
+        self.loaded_asset_name = ''
         self.alternating = False
 
         # Pulse generator parameters
-        self.current_channel_config_name = None
+        self.current_channel_config_name = ''
         self.sample_rate = 25e9
-        self.analogue_amplitude = None
+        self.analogue_amplitude = dict()
         self.interleave_on = False
 
         # timer for data analysis
@@ -118,17 +128,18 @@ class PulsedMeasurementLogic(GenericLogic):
         self.threadlock = Mutex()
 
         # plot data
-        self.signal_plot_x = None
-        self.signal_plot_y = None
-        self.signal_plot_y2 = None
-        self.signal_fft_x = None
-        self.signal_fft_y = None
-        self.signal_fft_y2 = None
-        self.measuring_error_plot_x = None
-        self.measuring_error_plot_y = None
-        self.measuring_error_plot_y2 = None
-        self.laser_plot_x = None
-        self.laser_plot_y = None
+        self.signal_plot_x = np.array([])
+        self.signal_plot_y = np.array([])
+        self.signal_plot_y2 = np.array([])
+        self.signal_fft_x = np.array([])
+        self.signal_fft_y = np.array([])
+        self.signal_fft_y2 = np.array([])
+        self.measuring_error_plot_x = np.array([])
+        self.measuring_error_plot_y = np.array([])
+        self.measuring_error_plot_y2 = np.array([])
+        self.laser_plot_x = np.array([])
+        self.laser_plot_y = np.array([])
+
 
         # raw data
         self.laser_data = np.zeros((10, 20))
@@ -143,16 +154,8 @@ class PulsedMeasurementLogic(GenericLogic):
         self.signal_plot_x_fit = np.arange(10, dtype=float)
         self.signal_plot_y_fit = np.zeros(len(self.signal_plot_x_fit), dtype=float)
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
         # get all the connectors:
         self._pulse_analysis_logic = self.get_connector('pulseanalysislogic')
@@ -171,36 +174,8 @@ class PulsedMeasurementLogic(GenericLogic):
         if 'number_of_lasers' in self._statusVariables:
             self.number_of_lasers = self._statusVariables['number_of_lasers']
             self._pulse_extraction_logic.number_of_lasers = self.number_of_lasers
-        if 'fast_counter_record_length' in self._statusVariables:
-            self.fast_counter_record_length = self._statusVariables['fast_counter_record_length']
-        if 'sequence_length_s' in self._statusVariables:
-            self.sequence_length_s = self._statusVariables['sequence_length_s']
         if 'controlled_vals' in self._statusVariables:
             self.controlled_vals = np.array(self._statusVariables['controlled_vals'])
-        if 'fast_counter_binwidth' in self._statusVariables:
-            self.fast_counter_binwidth = self._statusVariables['fast_counter_binwidth']
-        if 'microwave_power' in self._statusVariables:
-            self.microwave_power = self._statusVariables['microwave_power']
-        if 'microwave_freq' in self._statusVariables:
-            self.microwave_freq = self._statusVariables['microwave_freq']
-        if 'use_ext_microwave' in self._statusVariables:
-            self.use_ext_microwave = self._statusVariables['use_ext_microwave']
-        if 'current_channel_config_name' in self._statusVariables:
-            self.current_channel_config_name = self._statusVariables['current_channel_config_name']
-        if 'sample_rate' in self._statusVariables:
-            self.sample_rate = self._statusVariables['sample_rate']
-        if 'analogue_amplitude' in self._statusVariables:
-            self.analogue_amplitude = self._statusVariables['analogue_amplitude']
-        if 'interleave_on' in self._statusVariables:
-            self.interleave_on = self._statusVariables['interleave_on']
-        if 'timer_interval' in self._statusVariables:
-            self.timer_interval = self._statusVariables['timer_interval']
-        if 'alternating' in self._statusVariables:
-            self.alternating = self._statusVariables['alternating']
-        if 'show_raw_data' in self._statusVariables:
-            self.show_raw_data = self._statusVariables['show_raw_data']
-        if 'show_laser_index' in self._statusVariables:
-            self.show_laser_index = self._statusVariables['show_laser_index']
         if 'fits' in self._statusVariables and isinstance(self._statusVariables['fits'], dict):
             self.fc.load_from_dict(self._statusVariables['fits'])
 
@@ -210,7 +185,7 @@ class PulsedMeasurementLogic(GenericLogic):
         avail_activation_configs = self.get_pulser_constraints().activation_config
         if self.current_channel_config_name not in avail_activation_configs:
             self.current_channel_config_name = list(avail_activation_configs)[0]
-        if self.analogue_amplitude is None:
+        if len(self.analogue_amplitude)==0:
             self.analogue_amplitude, dummy = self._pulse_generator_device.get_analog_level()
         if self.interleave_on is None:
             self.interleave_on = self._pulse_generator_device.get_interleave()
@@ -241,32 +216,15 @@ class PulsedMeasurementLogic(GenericLogic):
         self.recalled_raw_data = None
         return
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate the module properly.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method activation.
         """
 
         if self.getState() != 'idle' and self.getState() != 'deactivated':
             self.stop_pulsed_measurement()
 
         self._statusVariables['number_of_lasers'] = self.number_of_lasers
-        self._statusVariables['fast_counter_record_length'] = self.fast_counter_record_length
-        self._statusVariables['sequence_length_s'] = self.sequence_length_s
         self._statusVariables['controlled_vals'] = list(self.controlled_vals)
-        self._statusVariables['fast_counter_binwidth'] = self.fast_counter_binwidth
-        self._statusVariables['microwave_power'] = self.microwave_power
-        self._statusVariables['microwave_freq'] = self.microwave_freq
-        self._statusVariables['use_ext_microwave'] = self.use_ext_microwave
-        self._statusVariables['current_channel_config_name'] = self.current_channel_config_name
-        self._statusVariables['sample_rate'] = self.sample_rate
-        self._statusVariables['analogue_amplitude'] = self.analogue_amplitude
-        self._statusVariables['interleave_on'] = self.interleave_on
-        self._statusVariables['timer_interval'] = self.timer_interval
-        self._statusVariables['alternating'] = self.alternating
-        self._statusVariables['show_raw_data'] = self.show_raw_data
-        self._statusVariables['show_laser_index'] = self.show_laser_index
         if len(self.fc.fit_list) > 0:
             self._statusVariables['fits'] = self.fc.save_to_dict()
         return
@@ -568,7 +526,7 @@ class PulsedMeasurementLogic(GenericLogic):
         """ Delete all loaded files in the device's current memory. """
         self.pulse_generator_off()
         err = self._pulse_generator_device.clear_all()
-        self.loaded_asset_name = None
+        self.loaded_asset_name = ''
         self.sigLoadedAssetUpdated.emit(self.loaded_asset_name)
         return err
 
@@ -664,11 +622,19 @@ class PulsedMeasurementLogic(GenericLogic):
         @return:
         """
         if switch_on:
-            self._mycrowave_source_device.on()
-            self.sigExtMicrowaveRunningUpdated.emit(True)
+            err_code = self._mycrowave_source_device.cw_on()
+            if err_code == -1:
+                self._mycrowave_source_device.off()
+                self.log.error('Failed to turn on CW microwave source.')
+                self.sigExtMicrowaveRunningUpdated.emit(False)
+            else:
+                self.sigExtMicrowaveRunningUpdated.emit(True)
         else:
-            self._mycrowave_source_device.off()
-            self.sigExtMicrowaveRunningUpdated.emit(False)
+            err_code = self._mycrowave_source_device.off()
+            if err_code == -1:
+                self.log.error('Failed to turn off CW microwave source.')
+            else:
+                self.sigExtMicrowaveRunningUpdated.emit(False)
         return
 
     def set_microwave_params(self, frequency=None, power=None, use_ext_mw=None):
@@ -679,7 +645,9 @@ class PulsedMeasurementLogic(GenericLogic):
         if use_ext_mw is not None:
             self.use_ext_microwave = use_ext_mw
         if self.use_ext_microwave:
-            self._mycrowave_source_device.set_cw(freq=frequency, power=power)
+            self.microwave_freq, \
+            self.microwave_power, \
+            dummy = self._mycrowave_source_device.set_cw(frequency=frequency, power=power)
         self.sigExtMicrowaveSettingsUpdated.emit(self.microwave_freq, self.microwave_power,
                                                  self.use_ext_microwave)
         return

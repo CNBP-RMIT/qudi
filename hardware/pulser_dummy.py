@@ -24,7 +24,7 @@ import os
 from collections import OrderedDict
 from fnmatch import fnmatch
 
-from core.base import Base
+from core.module import Base, ConfigOption
 from interface.pulser_interface import PulserInterface, PulserConstraints
 
 
@@ -40,12 +40,6 @@ class PulserDummy(Base, PulserInterface):
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
-
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{0}: {1}'.format(key,config[key]))
 
         self.log.info('Dummy Pulser: I will simulate an AWG :) !')
 
@@ -108,24 +102,13 @@ class PulserDummy(Base, PulserInterface):
 
         self.current_status = 0    # that means off, not running.
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
         self.connected = True
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
         """
 
         self.connected = False

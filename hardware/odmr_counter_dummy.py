@@ -22,7 +22,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import numpy as np
 import time
 
-from core.base import Base
+from core.module import Base, Connector, ConfigOption
 from interface.odmr_counter_interface import ODMRCounterInterface
 
 class ODMRCounterDummy(Base, ODMRCounterInterface):
@@ -32,45 +32,24 @@ class ODMRCounterDummy(Base, ODMRCounterInterface):
     _modtype = 'hardware'
 
     # connectors
-    _connectors = {'fitlogic': 'FitLogic'}
+    fitlogic = Connector(interface='FitLogic')
+
+    # config options
+    _clock_frequency = ConfigOption('clock_frequency', 100, missing='warn')
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{0}: {1}'.format(key,config[key]))
-
-        if 'clock_frequency' in config.keys():
-            self._clock_frequency=config['clock_frequency']
-        else:
-            self._clock_frequency=100
-            self.log.warning('No clock_frequency configured taking 100 Hz '
-                    'instead.')
-
         self._scanner_counter_daq_task = None
         self._odmr_length = None
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
         self._fit_logic = self.get_connector('fitlogic')
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
         """
         self.log.debug('ODMR counter is shutting down.')
 

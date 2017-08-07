@@ -35,7 +35,7 @@ Reimplement each call from the magnet interface and use only the motor interface
 command to talk to a xyz motor hardware and a rotational motor hardware.
 """
 
-
+from core.module import Connector
 from logic.generic_logic import GenericLogic
 from interface.magnet_interface import MagnetInterface
 
@@ -48,10 +48,8 @@ class MagnetMotorXYZROTInterfuse(GenericLogic, MagnetInterface):
     # declare connectors, here you can see the interfuse action: the in
     # connector will cope a motor hardware, that means a motor device can
     # connect to the in connector of the logic.
-    _connectors = {
-        'motorstage_xyz': 'MotorInterface',
-        'motorstage_rot': 'MotorInterface'
-    }
+    motorstage_xyz = Connector(interface='MotorInterface')
+    motorstage_rot = Connector(interface='MotorInterface')
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -61,27 +59,14 @@ class MagnetMotorXYZROTInterfuse(GenericLogic, MagnetInterface):
         # whether movement commands are passed to the hardware.
         self._magnet_idle = False
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
         self._motor_device_rot = self.get_connector('motorstage_rot')
         self._motor_device_xyz = self.get_connector('motorstage_xyz')
 
-
-
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
         """
         pass
 

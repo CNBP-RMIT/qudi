@@ -25,7 +25,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 """
 
-from core.base import Base
+from core.module import Base
 from interface.spectrometer_interface import SpectrometerInterface
 import numpy as np
 import comtypes.client as ctc
@@ -42,20 +42,16 @@ class WinSpec32(Base, SpectrometerInterface):
     """ Hardware module for reading spectra from the WinSpec32 spectrometer software.
     """
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Activate module.
-
-            @param object e: fysom state transition information
         """
         w32c.pythoncom.CoInitialize()
         self.expt_is_running = WinSpecLib.EXP_RUNNING
         self.path = 'asdf'
         self.prefix = 'test'
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate module.
-
-            @param object e: fysom state transition information
         """
         pass
 

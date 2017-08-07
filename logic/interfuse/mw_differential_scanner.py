@@ -21,7 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import time
 import numpy as np
 
-from core.base import Base
+from core.module import Base, Connector, ConfigOption
 from interface.confocal_scanner_interface import ConfocalScannerInterface
 
 
@@ -32,25 +32,15 @@ class ConfocalScannerInterfaceDummy(Base, ConfocalScannerInterface):
     """
     _modclass = 'confocalscannerinterface'
     _modtype = 'hardware'
+
     # connectors
-    _connectors = {'fitlogic': 'FitLogic'}
+    fitlogic = Connector(interface='FitLogic')
+
+    # config options
+    _clock_frequency = ConfigOption('clock_frequency', 100, missing='warn')
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
-
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{0}: {1}'.format(key, config[key]))
-
-        if 'clock_frequency' in config.keys():
-            self._clock_frequency = config['clock_frequency']
-        else:
-            self._clock_frequency = 100
-            self.log.warning('No clock_frequency configured taking 100 Hz '
-                    'instead.')
-
 
         # Internal parameters
         self._line_length = None
@@ -62,7 +52,7 @@ class ConfocalScannerInterfaceDummy(Base, ConfocalScannerInterface):
 
         self._num_points = 500
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
         """
 
@@ -119,7 +109,7 @@ class ConfocalScannerInterfaceDummy(Base, ConfocalScannerInterface):
 #        print('Position of NV 1',self._points[0,:],self._points_z[0,:],len(self._points))
 #        print(self._points_z[:,0],self._points[:,0])
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         self.reset_hardware()
 
     def reset_hardware(self):

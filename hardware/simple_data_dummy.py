@@ -22,7 +22,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import numpy as np
 import time
 
-from core.base import Base
+from core.module import Base
 from interface.simple_data_interface import SimpleDataInterface
 
 
@@ -32,10 +32,10 @@ class SimpleDummy(Base, SimpleDataInterface):
     _modclass = 'simple'
     _modtype = 'hardware'
 
-    def on_activate(self, e):
+    def on_activate(self):
         pass
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         pass
 
     def getData(self):

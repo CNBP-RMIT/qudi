@@ -24,6 +24,7 @@ from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as plt
 
+from core.module import Connector
 from core.util.mutex import Mutex
 from core.util.network import netobtain
 from logic.generic_logic import GenericLogic
@@ -41,11 +42,9 @@ class SpectrumLogic(GenericLogic):
     _modtype = 'logic'
 
     # declare connectors
-    _connectors = {
-        'spectrometer': 'SpectrometerInterface',
-        'odmrlogic1': 'ODMRLogic',
-        'savelogic': 'SaveLogic'
-    }
+    spectrometer = Connector(interface='SpectrometerInterface')
+    odmrlogic1 = Connector(interface='ODMRLogic')
+    savelogic = Connector(interface='SaveLogic')
 
     def __init__(self, **kwargs):
         """ Create SpectrometerLogic object with connectors.
@@ -57,10 +56,8 @@ class SpectrumLogic(GenericLogic):
         # locking for thread safety
         self.threadlock = Mutex()
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-          @param object e: Fysom state change event
         """
         self.spectrum_data = np.array([])
         self.diff_spec_data_mod_on = np.array([])
@@ -73,10 +70,8 @@ class SpectrumLogic(GenericLogic):
 
         self.sig_next_diff_loop.connect(self._loop_differential_spectrum)
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-          @param object e: Fysom state change event
         """
         if self.getState() != 'idle' and self.getState() != 'deactivated':
             pass

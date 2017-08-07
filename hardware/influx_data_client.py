@@ -21,7 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 from influxdb import InfluxDBClient
 
-from core.base import Base
+from core.module import Base, ConfigOption
 from interface.process_interface import ProcessInterface
 
 
@@ -32,45 +32,22 @@ class InfluxDataClient(Base, ProcessInterface):
     _modclass = 'InfluxDataClient'
     _modtype = 'hardware'
 
-    def on_activate(self, e):
+    user = ConfigOption('user', missing='error')
+    pw = ConfigOption('password', missing='error')
+    dbname = ConfigOption('dbname', missing='error')
+    host = ConfigOption('host', missing='error')
+    port = ConfigOption('port', 8086)
+    series = ConfigOption('dataseries', missing='error')
+    field = ConfigOption('field', missing='error')
+    cr = ConfigOption('criterion', missing='error')
+
+    def on_activate(self):
         """ Activate module.
-
-            @param e object: Fysom state transition information
         """
-        config = self.getConfiguration()
-
-        if 'user' in config:
-            self.user = config['user']
-
-        if 'password' in config:
-            self.pw = config['password']
-
-        if 'dbname' in config:
-            self.dbname = config['dbname']
-
-        if 'host' in config:
-            self.host = config['host']
-
-        if 'port' in config:
-            self.port = config['port']
-        else:
-            self.port = 8086
-
-        if 'dataseries' in config:
-            self.series = config['dataseries']
-
-        if 'field' in config:
-            self.field = config['field']
-
-        if 'criterion' in config:
-            self.cr = config['criterion']
-
         self.connect_db()
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate module.
-
-            @param e object: Fysom state transition information
         """
         del self.conn
 
@@ -87,7 +64,7 @@ class InfluxDataClient(Base, ProcessInterface):
 
     def getProcessUnit(self):
         """ Return the unit that the value is measured in
-        
+
             @return (str, str): a tuple of ('abreviation', 'full unit name')
         """
         return '°C', ' degrees Celsius'

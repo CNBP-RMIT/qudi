@@ -19,7 +19,7 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
-from core.base import Base
+from core.module import Base, Connector
 from interface.spectrometer_interface import SpectrometerInterface
 
 from time import strftime, localtime
@@ -34,20 +34,16 @@ class SpectrometerInterfaceDummy(Base,SpectrometerInterface):
         Shows a silicon vacancy spectrum at liquid helium temperatures.
     """
 
-    _connectors = {'fitlogic': 'FitLogic'}
+    fitlogic = Connector(interface='FitLogic')
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Activate module.
-
-            @param object e: fysom state transition information
         """
         self._fitLogic = self.get_connector('fitlogic')
         self.exposure = 0.1
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate module.
-
-            @param object e: fysom state transition information
         """
         pass
 
@@ -85,7 +81,7 @@ class SpectrometerInterfaceDummy(Base,SpectrometerInterface):
 
     def saveSpectrum(self, path, postfix = ''):
         """ Dummy save function.
-        
+
             @param str path: path of saved spectrum
             @param str postfix: postfix of saved spectrum file
         """

@@ -20,7 +20,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 
-from core.base import Base
+from core.module import Base, ConfigOption
 from interface.process_control_interface import ProcessControlInterface
 from core.util.mutex import Mutex
 
@@ -34,27 +34,20 @@ class PiPWM(Base, ProcessControlInterface):
     _modclass = 'ProcessControlInterface'
     _modtype = 'hardware'
 
+    channel = ConfigOption('channel', 0, missing='warn')
+    freq = ConfigOption('frequency', 100)
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
         #locking for thread safety
         self.threadlock = Mutex()
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Activate module.
-
-            @param object e: fysom state transition information
         """
-        config = self.getConfiguration()
-
-        if 'channel' in config:
-            channel = config['channel']
-        else:
-            channel = 0
-            self.log.warning('PWN channel not set, using 0')
-
         # pin mapping
-        if channel == 0:
+        if self.channel == 0:
             self.inapin = 5
             self.inbpin = 22
             self.pwmpin = 24
@@ -73,18 +66,11 @@ class PiPWM(Base, ProcessControlInterface):
             self.dibpin = 6
             self.fanpin = 13
 
-        if 'frequency' in config:
-            self.freq = config['frequency']
-        else:
-            self.freq = 100
-            self.log.warning('Frequency not set, using 100Hz.')
         self.setupPins()
         self.startPWM()
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate module.
-
-            @param object e: fysom state transition information
         """
         self.stopPWM()
 
@@ -142,7 +128,7 @@ class PiPWM(Base, ProcessControlInterface):
 
     def setControlValue(self, value):
         """ Set control value for this controller.
-        
+
             @param float value: control value, in this case duty cycle in percent
         """
         with self.threadlock:
@@ -150,7 +136,7 @@ class PiPWM(Base, ProcessControlInterface):
 
     def getControlValue(self):
         """ Get control value for this controller.
-        
+
             @return float: control value, in this case duty cycle in percent
         """
         return self.dutycycle
@@ -173,12 +159,9 @@ class PiPWM(Base, ProcessControlInterface):
 class PiPWMHalf(PiPWM):
     """ PWM controller restricted to positive values.
     """
-    
-    def __init__(self, manager, name, config = None, **kwargs):
-        if config is None:
-            config = {}
-        c_dict = {'onactivate': self.activation, 'ondeactivate': self.deactivation}
-        PiPWM.__init__(self, manager, name, **kwargs)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         #locking for thread safety
         self.threadlock = Mutex()
 

@@ -20,11 +20,12 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
-from qtpy import QtCore
 import numpy as np
 
-from logic.generic_logic import GenericLogic
+from core.module import Connector, ConfigOption, StatusVar
 from core.util.mutex import Mutex
+from logic.generic_logic import GenericLogic
+from qtpy import QtCore
 
 
 class PIDLogic(GenericLogic):
@@ -33,44 +34,31 @@ class PIDLogic(GenericLogic):
     """
     _modclass = 'pidlogic'
     _modtype = 'logic'
-    ## declare connectors
-    _connectors = {
-        'controller': 'PIDControllerInterface',
-        'savelogic': 'SaveLogic'
-    }
 
+    ## declare connectors
+    controller = Connector(interface='PIDControllerInterface')
+    savelogic = Connector(interface='SaveLogic')
+
+    # status vars
+    bufferLength = StatusVar('bufferlength', 1000)
+    timestep = StatusVar(default=100)
+
+    # signals
     sigUpdateDisplay = QtCore.Signal()
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{0}: {1}'.format(key,config[key]))
+        self.log.debug('The following configuration was found.')
 
         #number of lines in the matrix plot
         self.NumberOfSecondsLog = 100
         self.threadlock = Mutex()
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
         """
         self._controller = self.get_connector('controller')
         self._save_logic = self.get_connector('savelogic')
-
-        config = self.getConfiguration()
-
-        # load parameters stored in app state store
-        if 'bufferlength' in self._statusVariables:
-            self.bufferLength = self._statusVariables['bufferlength']
-        else:
-            self.bufferLength = 1000
-
-        if 'timestep' in self._statusVariables:
-            self.timestep = self._statusVariables['timestep']
-        else:
-            self.timestep = 100
 
         self.history = np.zeros([3, self.bufferLength])
         self.savingState = False
@@ -80,12 +68,9 @@ class PIDLogic(GenericLogic):
         self.timer.setInterval(self.timestep)
         self.timer.timeout.connect(self.loop)
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Perform required deactivation. """
-
-        # save parameters stored in ap state store
-        self._statusVariables['bufferlength'] = self.bufferLength
-        self._statusVariables['timestep'] = self.timestep
+        pass
 
     def getBufferLength(self):
         """ Get the current data buffer length.

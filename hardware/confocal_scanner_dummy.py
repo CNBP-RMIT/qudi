@@ -22,7 +22,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import numpy as np
 import time
 
-from core.base import Base
+from core.module import Base, Connector, ConfigOption
 from interface.confocal_scanner_interface import ConfocalScannerInterface
 
 
@@ -31,25 +31,18 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
     """ Dummy confocal scanner.
         Produces a picture with several gaussian spots.
     """
+
     _modclass = 'ConfocalScannerDummy'
     _modtype = 'hardware'
+
     # connectors
-    _connectors = {'fitlogic': 'FitLogic'}
+    fitlogic = Connector(interface='FitLogic')
+
+    # config
+    _clock_frequency = ConfigOption('clock_frequency', 100, missing='warn')
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
-
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{0}: {1}'.format(key, config[key]))
-
-        if 'clock_frequency' in config.keys():
-            self._clock_frequency = config['clock_frequency']
-        else:
-            self._clock_frequency = 100
-            self.log.warning('No clock_frequency configured taking 100 Hz instead.')
 
         # Internal parameters
         self._line_length = None
@@ -59,16 +52,8 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
         self._current_position = [0, 0, 0, 0][0:len(self.get_scanner_axes())]
         self._num_points = 500
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event
-                         the state before the event happens and the destination
-                         of the state which should be reached after the event
-                         has happen.
         """
 
         self._fit_logic = self.get_connector('fitlogic')
@@ -130,11 +115,8 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
         # offset
         self._points_z[:, 3] = 0
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate properly the confocal scanner dummy.
-
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
         """
         self.reset_hardware()
 
@@ -227,7 +209,7 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
     def get_scanner_axes(self):
         """ Dummy scanner is always 3D cartesian.
         """
-        return ['x', 'y', 'z']
+        return ['x', 'y', 'z', 'a']
 
     def get_scanner_count_channels(self):
         """ 3 counting channels in dummy confocal: normal, negative and a ramp."""
@@ -334,19 +316,11 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
 
         #TODO: Change the gaussian function here to the one from fitlogic and delete the local modules to calculate
         #the gaussian functions
-        if line_path[0, 0] != line_path[0, 1]:
-            x_data, y_data = np.meshgrid(line_path[0, :], line_path[1, 0])
-            for i in range(self._num_points):
-                count_data += self.twoD_gaussian_function((x_data,y_data),
-                              *(self._points[i])) * ((self.gaussian_function(np.array(z_data),
-                              *(self._points_z[i]))))
-        else:
-            x_data, y_data = np.meshgrid(line_path[0, 0], line_path[1, 0])
-            for i in range(self._num_points):
-                count_data += self.twoD_gaussian_function((x_data,y_data),
-                              *(self._points[i])) * ((self.gaussian_function(z_data,
-                              *(self._points_z[i]))))
-
+        x_data = np.array(line_path[0, :])
+        y_data = np.array(line_path[1, :])
+        for i in range(self._num_points):
+            count_data += self.twoD_gaussian_function((x_data, y_data), *(self._points[i])
+                ) * self.gaussian_function(np.array(z_data), *(self._points_z[i]))
 
         time.sleep(self._line_length * 1. / self._clock_frequency)
         time.sleep(self._line_length * 1. / self._clock_frequency)
@@ -354,7 +328,11 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
         # update the scanner position instance variable
         self._current_position = list(line_path[:, -1])
 
-        return np.array([count_data, 5e5-count_data, np.ones(count_data.shape) * line_path[1, 0]]).transpose()
+        return np.array([
+                count_data,
+                5e5 - count_data,
+                np.ones(count_data.shape) * line_path[1, 0] * 100
+            ]).transpose()
 
     def close_scanner(self):
         """ Closes the scanner and cleans up afterwards.

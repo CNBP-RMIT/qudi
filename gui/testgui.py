@@ -20,6 +20,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 # Test gui (test)
 
+from core.module import ConfigOption
 from gui.guibase import GUIBase
 from qtpy import QtWidgets
 
@@ -30,6 +31,12 @@ class TestGui(GUIBase):
         This class does not implement a show() method to test the
         error thrown by GUIBase when this function is not implemented.
     """
+
+    buttonText = ConfigOption('text', 'No Text configured')
+    infoOption = ConfigOption('info', 'Info Option', missing='info')
+    warningOption = ConfigOption('warning', 'Warning Option', missing='warn')
+    errorOption = ConfigOption('error', missing='error')
+
     def __init__(self, config, **kwargs):
         """Create a TestWindow object.
 
@@ -38,14 +45,8 @@ class TestGui(GUIBase):
         """
         super().__init__(config=config, **kwargs)
 
-        # get text from config
-        self.buttonText = 'No Text configured'
-        if 'text' in config:
-            self.buttonText = config['text']
-
-    def on_activate(self, e=None):
+    def on_activate(self):
         """This creates all the necessary UI elements.
-          @param object e: Fysom state change
         """
         self._mw = QtWidgets.QMainWindow()
         self._mw.setGeometry(300,300,500,100)
@@ -65,9 +66,8 @@ class TestGui(GUIBase):
         self._mw.setCentralWidget(self.cwdget)
         self._mw.show()
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """
-          @param object e: Fysom state change
         """
         pass
 

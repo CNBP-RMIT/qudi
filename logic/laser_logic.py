@@ -23,6 +23,7 @@ import time
 import numpy as np
 from qtpy import QtCore
 
+from core.module import Connector
 from logic.generic_logic import GenericLogic
 from interface.simple_laser_interface import ControlMode, ShutterState, LaserState
 
@@ -32,14 +33,13 @@ class LaserLogic(GenericLogic):
     """
     _modclass = 'laser'
     _modtype = 'logic'
-    _connectors = {'laser': 'SimpleLaserInterface'}
+
+    laser = Connector(interface='SimpleLaserInterface')
 
     sigUpdate = QtCore.Signal()
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Prepare logic module for work.
-
-          @param object e: Fysom state change notification
         """
         self._laser = self.get_connector('laser')
         self.stopRequest = False
@@ -74,10 +74,8 @@ class LaserLogic(GenericLogic):
         self.init_data_logging()
         self.start_query_loop()
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate modeule.
-
-          @param object e: Fysom state change notification
         """
         self.stop_query_loop()
         for i in range(5):

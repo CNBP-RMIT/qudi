@@ -19,24 +19,28 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
-import logging
 import core.logger
+import logging
+import numpy as np
+import os
+
+from collections import OrderedDict
+from core.module import StatusVar
+from .errordialog import ErrorDialog
 from gui.guibase import GUIBase
 from qtpy import QtCore, QtWidgets, uic
 from qtpy.QtGui import QPalette
 from qtpy.QtWidgets import QWidget
+
 try:
     from qtconsole.inprocess import QtInProcessKernelManager
 except ImportError:
     from IPython.qt.inprocess import QtInProcessKernelManager
+
 try:
     from git import Repo
 except:
     pass
-from collections import OrderedDict
-from .errordialog import ErrorDialog
-import numpy as np
-import os
 
 try:
     import pyqtgraph as pg
@@ -59,6 +63,11 @@ class ManagerGui(GUIBase):
       It supports module loading, reloading, logging and other
       administrative tasks.
     """
+
+    # status vars
+    consoleFontSize = StatusVar('console_font_size', 10)
+
+    # signals
     sigStartAll = QtCore.Signal()
     sigStartModule = QtCore.Signal(str, str)
     sigReloadModule = QtCore.Signal(str, str)
@@ -79,16 +88,8 @@ class ManagerGui(GUIBase):
         self.modlist = list()
         self.modules = set()
 
-    def on_activate(self, e=None):
+    def on_activate(self):
         """ Activation method called on change to active state.
-
-        @param object e: Fysom.event object from Fysom class.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look
-                         in the Base Class). This object contains the passed
-                         event, the state before the event happened and the
-                         destination of the state which should be reached
-                         after the event had happened.
 
         This method creates the Manager main window.
         """
@@ -176,11 +177,8 @@ class ManagerGui(GUIBase):
         self._mw.threadDockWidget.hide()
         self._mw.show()
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """Close window and remove connections.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method activation.
         """
         self.stopIPythonWidget()
         self.stopIPython()
@@ -308,8 +306,7 @@ Go, play.
 """.format(banner_modules)
         self._mw.consolewidget.banner = banner
         # font size
-        if 'console_font_size' in self._statusVariables:
-            self.consoleSetFontSize(self._statusVariables['console_font_size'])
+        self.consoleSetFontSize(self.consoleFontSize)
         # settings
         self._csd = ConsoleSettingsDialog()
         self._csd.accepted.connect(self.consoleApplySettings)
@@ -358,11 +355,7 @@ Go, play.
     def consoleKeepSettings(self):
         """ Write old values into config dialog.
         """
-        if 'console_font_size' in self._statusVariables:
-            self._csd.fontSizeBox.setProperty(
-                'value', self._statusVariables['console_font_size'])
-        else:
-            self._csd.fontSizeBox.setProperty('value', 10)
+        self._csd.fontSizeBox.setProperty('value', self.consoleFontSize)
 
     def consoleApplySettings(self):
         """ Apply values from config dialog to console.
@@ -371,7 +364,7 @@ Go, play.
 
     def consoleSetFontSize(self, fontsize):
         self._mw.consolewidget.font_size = fontsize
-        self._statusVariables['console_font_size'] = fontsize
+        self.consoleFontSize = fontsize
         self._mw.consolewidget.reset_font()
 
     def updateConfigWidgets(self):

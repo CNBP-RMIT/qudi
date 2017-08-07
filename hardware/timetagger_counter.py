@@ -24,7 +24,7 @@ import TimeTagger as tt
 import time
 import numpy as np
 
-from core.base import Base
+from core.module import Base
 from interface.slow_counter_interface import SlowCounterInterface
 from interface.slow_counter_interface import SlowCounterConstraints
 from interface.slow_counter_interface import CountingMode
@@ -36,42 +36,17 @@ class TimeTaggerCounter(Base, SlowCounterInterface):
     _modtype = 'TTCounter'
     _modclass = 'hardware'
 
+    _channel_apd_0 = ConfigOption('timetagger_channel_apd_0', missing='error')
+    _channel_apd_1 = ConfigOption('timetagger_channel_apd_1', None, missing='warn')
+    _sum_channels = ConfigOption('timetagger_sum_channels', False)
 
-    def on_activate(self, e=None):
+    def on_activate(self):
         """ Start up TimeTagger interface
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
-
         self._tagger = tt.createTimeTagger()
-
         self._count_frequency = 50  # Hz
 
-        config = self.getConfiguration()
-
-        if 'timetagger_channel_apd_0' in config.keys():
-            self._channel_apd_0 = config['timetagger_channel_apd_0']
-        else:
-            self.log.error('No parameter "timetagger_channel_apd_0" configured.\n')
-
-        if 'timetagger_channel_apd_1' in config.keys():
-            self._channel_apd_1 = config['timetagger_channel_apd_1']
-        else:
-            self._channel_apd_1 = None
-
-        if 'timetagger_sum_channels' in config.keys():
-            self._sum_channels = config['timetagger_sum_channels']
-        else:
-            self.log.warning('No indication whether or not to sum apd channels for timetagger. Assuming false.')
-            self._sum_channels = False
-
-        if self._sum_channels and ('timetagger_channel_apd_1' in config.keys()):
+        if self._sum_channels and self._channel_apd_1 is None:
             self.log.error('Cannot sum channels when only one apd channel given')
 
         ## self._mode can take 3 values:
@@ -85,11 +60,8 @@ class TimeTaggerCounter(Base, SlowCounterInterface):
         else:
             self._mode = 2
 
-    def on_deactivate(self, e=None):
+    def on_deactivate(self):
         """ Shut down the TimeTagger.
-
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
         """
         #self.reset_hardware()
         pass

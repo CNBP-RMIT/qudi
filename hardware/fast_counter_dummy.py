@@ -24,15 +24,9 @@ import time
 import os
 import numpy as np
 
-from core.base import Base
+from core.module import Base, ConfigOption
 from interface.fast_counter_interface import FastCounterInterface
 
-
-class InterfaceImplementationError(Exception):
-    def __init__(self, value):
-        self.value = value
-    def __str__(self):
-        return repr(self.value)
 
 class FastCounterDummy(Base, FastCounterInterface):
     """This is the Interface class to define the controls for the simple
@@ -41,52 +35,35 @@ class FastCounterDummy(Base, FastCounterInterface):
     _modclass = 'fastcounterinterface'
     _modtype = 'hardware'
 
+    # config option
+    _gated = ConfigOption('gated', False, missing='warn')
+    trace_path = ConfigOption('load_trace', None)
+
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
-        self.log.info('The following configuration was found.')
+        self.log.debug('The following configuration was found.')
 
         # checking for the right configuration
         for key in config.keys():
             self.log.info('{0}: {1}'.format(key,config[key]))
 
-        if 'gated' in config.keys():
-            self._gated = config['gated']
-        else:
-            self._gated = False
-            self.log.warning('No parameter "gated" was specified in the '
-                        'config. The default configuration gated={0} will be '
-                        'taken instead.'.format(self._gated))
-
-        if 'load_trace' in config.keys():
-            self.trace_path = config['load_trace']
-        else:
+        if self.trace_path is None:
             self.trace_path = os.path.join(
                 self.get_main_dir(),
                 'tools',
                 'FastComTec_demo_timetrace.asc')
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Fysom.event object from Fysom class.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
         self.statusvar = 0
         self._binwidth = 1
         self._gate_length_bins = 8192
         return
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method activation.
         """
         self.statusvar = -1
         return

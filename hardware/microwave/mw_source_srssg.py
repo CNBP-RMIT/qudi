@@ -23,7 +23,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 import visa
 
-from core.base import Base
+from core.module import Base, ConfigOption
 from interface.microwave_interface import MicrowaveInterface
 from interface.microwave_interface import MicrowaveLimits
 from interface.microwave_interface import MicrowaveMode
@@ -35,40 +35,19 @@ class MicrowaveSRSSG(Base, MicrowaveInterface):
     _modclass = 'MicrowaveSRSSG'
     _modtype = 'interface'
 
-    def on_activate(self, e):
+    _gpib_address = ConfigOption('gpib_address', missing='error')
+    _gpib_timeout = ConfigOption('gpib_timeout', 10, missing='warn')
+
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
-
-        # checking for the right configuration
-        config = self.getConfiguration()
-        if 'gpib_address' in config.keys():
-            self._gpib_address = config['gpib_address']
-        else:
-            self.log.error(
-                'This is MW SRS SG: did not find >>gpib_address<< in '
-                'configration.')
-
-        if 'gpib_timeout' in config.keys():
-            self._gpib_timeout = int(config['gpib_timeout'])*1000
-        else:
-            self._gpib_timeout = 10*1000
-            self.log.error(
-                'This is MW SRS SG: did not find >>gpib_timeout<< in '
-                'configration. I will set it to 10 seconds.')
-
+        self._gpib_timeout = self._gpib_timeout * 1000
         # trying to load the visa connection to the module
         self.rm = visa.ResourceManager()
         try:
-            self._gpib_connection = self.rm.open_resource(self._gpib_address,
-                                                          timeout=self._gpib_timeout)
+            self._gpib_connection = self.rm.open_resource(
+                self._gpib_address,
+                timeout=self._gpib_timeout)
         except:
             self.log.error(
                 'This is MW SRS SG: could not connect to the GPIB '
@@ -78,11 +57,8 @@ class MicrowaveSRSSG(Base, MicrowaveInterface):
         self.log.info('MW SRS SG initialised and connected to hardware.')
         self.model = self._gpib_connection.query('*IDN?').split(',')[1]
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
         """
 
         self._gpib_connection.close()

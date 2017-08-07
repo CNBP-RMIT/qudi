@@ -26,7 +26,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import visa
 import numpy as np
 
-from core.base import Base
+from core.module import Base, ConfigOption
 from interface.microwave_interface import MicrowaveInterface
 from interface.microwave_interface import MicrowaveLimits
 from interface.microwave_interface import MicrowaveMode
@@ -41,50 +41,24 @@ class MicrowaveAgilent(Base, MicrowaveInterface):
     _modclass = 'MicrowaveAgilent'
     _modtype = 'hardware'
 
-    def on_activate(self,e):
+    _usb_address = ConfigOption('usb_address', missing='error')
+    _usb_timeout = ConfigOption('usb_timeout', 10, missing='warn')
+
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
-        # checking for the right configuration
-        config = self.getConfiguration()
-        # agilent mw source has USB connection, therefore configuration checks for USB address
-        if 'usb_address' in config.keys():
-            self._usb_address = config['usb_address']
-        else:
-            self.log.error(
-                'This is MWAGILENT: did not find >>usb_address<< in '
-                'configration.')
-
-        if 'usb_timeout' in config.keys():
-            self._usb_timeout = int(config['usb_timeout'])*1000
-        else:
-            self._usb_timeout = 10*1000
-            self.log.error(
-                'This is MWAGILENT: did not find >>usb_timeout<< in '
-                'configration. I will set it to 10 seconds.')
-
+        self._usb_timeout = self._usb_timeout * 1000
         # trying to load the visa connection to the module
         self.rm = visa.ResourceManager()
-        self._usb_connection = self.rm.open_resource(resource_name=self._usb_address,
-                                                            timeout=self._usb_timeout)
-
-
+        self._usb_connection = self.rm.open_resource(
+            resource_name=self._usb_address,
+            timeout=self._usb_timeout)
 
         self.log.info('MWAGILENT initialised and connected to hardware.')
         self.model = self._usb_connection.query('*IDN?').split(',')[1]
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
         """
 
         self._usb_connection.close()

@@ -20,7 +20,7 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
-from core.base import Base
+from core.module import Base, ConfigOption
 import visa
 
 class CTC100(Base):
@@ -32,18 +32,16 @@ class CTC100(Base):
     _modclass = 'ctc100'
     _modtype = 'hardware'
 
-    def on_activate(self, e):
+    # config options
+    _interface = ConfigOption('interface', missing='error')
+
+    def on_activate(self):
         """ Activate modeule
-
-            @param object e: fysom state transition information
         """
-        config = self.getConfiguration()
-        self.connect(config['interface'])
+        self.connect(self._interface)
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate modeule
-
-            @param object e: fysom state transition information
         """
         self.disconnect()
 

@@ -20,29 +20,32 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+import datetime
+import inspect
+import numpy as np
+import os
+import pyqtgraph as pg
+import re
+
+
+from collections import OrderedDict
+from core.module import Connector
+from core.util import units
+from core.util.mutex import Mutex
+from gui.colordefs import QudiPalettePale as palette
+from gui.colordefs import QudiPalette as palettedark
+from gui.guibase import GUIBase
+from gui.pulsed.pulse_editors import BlockEditor, BlockOrganizer, SequenceEditor
+#from gui.pulsed.pulse_editor import PulseEditor
+from logic.sampling_functions import SamplingFunctions
 #from qtpy import QtGui
 from pyqtgraph.Qt import QtGui
 from qtpy import QtCore
 from qtpy import QtWidgets
 from qtpy import uic
-import numpy as np
-import os
-from collections import OrderedDict
-import pyqtgraph as pg
-import re
-import inspect
-import datetime
-
-
-from gui.guibase import GUIBase
-from gui.colordefs import QudiPalettePale as palette
-from gui.colordefs import QudiPalette as palettedark
 from qtwidgets.scientific_spinbox import ScienDSpinBox, ScienSpinBox
-#from gui.pulsed.pulse_editor import PulseEditor
-from core.util.mutex import Mutex
-from core.util import units
-from gui.pulsed.pulse_editors import BlockEditor, BlockOrganizer, SequenceEditor
-from logic.sampling_functions import SamplingFunctions
+
+
 
 class PulsedExtractionExternalMainWindow(QtWidgets.QMainWindow):
 
@@ -65,28 +68,13 @@ class PulsedExtractionExternalGui(GUIBase):
     _modtype = 'gui'
 
     # declare connectors
-    _connectors = {'pulsedextractionexternallogic1': 'PulsedExtractionExternalLogic'}
+    pulsedextractionexternallogic1 = Connector(interface='PulsedExtractionExternalLogic')
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{0}: {1}'.format(key, config[key]))
-
-
-    def on_activate(self, e=None):
+    def on_activate(self):
         """ Definition and initialisation of the GUI.
-
-        @param object e: Fysom.event object from Fysom class.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
         #####################
         # Configuring the dock widgets
@@ -137,12 +125,9 @@ class PulsedExtractionExternalGui(GUIBase):
         self._mw.activateWindow()
         self._mw.raise_()
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         # FIXME: !
         """ Deactivate the module
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
         self._mw.close()
 

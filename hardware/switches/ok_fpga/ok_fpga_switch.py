@@ -22,7 +22,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 import os
 import okfrontpanel as ok
-from core.base import Base
+from core.module import Base
 from core.util.mutex import Mutex
 from interface.switch_interface import SwitchInterface
 
@@ -38,7 +38,7 @@ class OkFpgaTtlSwitch(Base, SwitchInterface):
         super().__init__(**kwargs)
         self.lock = Mutex()
 
-    def on_activate(self, e):
+    def on_activate(self):
         self.fp = ok.FrontPanel()
         self.fp.GetDeviceCount()
         self.fp.OpenBySerial(self.fp.GetDeviceListSerial(0))
@@ -50,7 +50,7 @@ class OkFpgaTtlSwitch(Base, SwitchInterface):
             self.reset()
             self.log.info('FPGA connected')
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         pass
         # self.fp.
 

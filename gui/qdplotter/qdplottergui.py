@@ -25,6 +25,7 @@ from qtpy import QtWidgets
 from qtpy import QtCore
 from qtpy import uic
 
+from core.module import Connector
 from gui.guibase import GUIBase
 
 
@@ -51,7 +52,7 @@ class QdplotterGui(GUIBase):
     _modtype = 'gui'
 
     # declare connectors
-    _connectors = {'qdplotlogic1': 'QdplotLogic'}
+    qdplotlogic1 = Connector(interface='QdplotLogic')
 
     sigStartCounter = QtCore.Signal()
     sigStopCounter = QtCore.Signal()
@@ -59,23 +60,8 @@ class QdplotterGui(GUIBase):
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{0}: {1}'.format(key, config[key]))
-
-
-    def on_activate(self, e=None):
+    def on_activate(self):
         """ Definition and initialisation of the GUI.
-
-        @param object e: Fysom.event object from Fysom class.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
 
         self._qdplot_logic = self.get_connector('qdplotlogic1')
@@ -122,7 +108,7 @@ class QdplotterGui(GUIBase):
         self._mw.horizontal_units_lineEdit.editingFinished.connect(self.h_label_changed)
         self._mw.vertical_label_lineEdit.editingFinished.connect(self.v_label_changed)
         self._mw.vertical_units_lineEdit.editingFinished.connect(self.v_label_changed)
-        
+
         self._mw.fit_domain_to_data_PushButton.clicked.connect(self.fit_domain_to_data)
         self._mw.fit_range_to_data_PushButton.clicked.connect(self.fit_range_to_data)
 
@@ -141,12 +127,9 @@ class QdplotterGui(GUIBase):
         self._mw.activateWindow()
         self._mw.raise_()
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         # FIXME: !
         """ Deactivate the module
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
         self._mw.close()
 

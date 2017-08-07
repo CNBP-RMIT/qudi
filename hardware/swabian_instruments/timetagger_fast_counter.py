@@ -22,55 +22,26 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 from interface.fast_counter_interface import FastCounterInterface
 import numpy as np
 import TimeTagger as tt
-from core.base import Base
+from core.module import Base, ConfigOption
 import os
 
 
 class TimeTaggerFastCounter(Base, FastCounterInterface):
-    _modclass = 'FastCounterFGAPiP3'
+    _modclass = 'TimeTaggerFastCounter'
     _modtype = 'hardware'
 
-    def on_activate(self, e):
+    _channel_apd_0 = ConfigOption('timetagger_channel_apd_0', missing='error')
+    _channel_apd_1 = ConfigOption('timetagger_channel_apd_1', missing='error')
+    _channel_detect = ConfigOption('timetagger_channel_detect', missing='error')
+    _channel_sequence = ConfigOption('timetagger_channel_sequence', missing='error')
+    _sum_channels = ConfigOption('timetagger_sum_channels', True, missing='warn')
+
+    def on_activate(self):
         """ Connect and configure the access to the FPGA.
-
-                @param object e: Event class object from Fysom.
-                                 An object created by the state machine module Fysom,
-                                 which is connected to a specific event (have a look in
-                                 the Base Class). This object contains the passed event
-                                 the state before the event happens and the destination
-                                 of the state which should be reached after the event
-                                 has happen.
-                """
-
+        """
         self._tagger = tt.createTimeTagger()
         self._tagger.reset()
         config = self.getConfiguration()
-
-        if 'timetagger_channel_apd_0' in config.keys():
-            self._channel_apd_0 = config['timetagger_channel_apd_0']
-        else:
-            self.log.warning('No apd0 channel defined for timetagger')
-
-        if 'timetagger_channel_apd_1' in config.keys():
-            self._channel_apd_1 = config['timetagger_channel_apd_1']
-        else:
-            self.log.warning('No apd1 channel defined for timetagger')
-
-        if 'timetagger_channel_detect' in config.keys():
-            self._channel_detect = config['timetagger_channel_detect']
-        else:
-            self.log.warning('No detect channel defined for timetagger')
-
-        if 'timetagger_channel_sequence' in config.keys():
-            self._channel_sequence = config['timetagger_channel_sequence']
-        else:
-            self.log.warning('No sequence channel defined for timetagger')
-
-        if 'timetagger_sum_channels' in config.keys():
-            self._sum_channels = config['timetagger_sum_channels']
-        else:
-            self.log.warning('No indication whether or not to sum apd channels for timetagger. Assuming true.')
-            self._sum_channels = True
 
         self._number_of_gates = int(100)
         self._bin_width = 1
@@ -133,11 +104,8 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
 
         return constraints
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate the FPGA.
-
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
         """
         if self.getState() == 'locked':
             self.pulsed.stop()

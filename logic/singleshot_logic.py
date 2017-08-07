@@ -19,16 +19,18 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
-import numpy as np
-from qtpy import QtCore
-from core.util.network import netobtain
-from logic.generic_logic import GenericLogic
-import time
+import copy
 import datetime
-from collections import OrderedDict
+import numpy as np
 import os
 import pylab as pb
-import copy
+import time
+
+from collections import OrderedDict
+from core.module import Connector
+from core.util.network import netobtain
+from logic.generic_logic import GenericLogic
+from qtpy import QtCore
 
 
 class SingleShotLogic(GenericLogic):
@@ -40,19 +42,17 @@ class SingleShotLogic(GenericLogic):
     _modtype = 'logic'
 
     # declare connectors
-    _connectors = {
-        'savelogic': 'SaveLogic',
-        'fitlogic': 'FitLogic',
-        'fastcounter': 'FastCounterInterface',
-        'pulseextractionlogic': 'PulseExtractionLogic',
-        'pulsedmeasurementlogic': 'PulsedMeasurementLogic',
-        'traceanalysislogic1': 'TraceAnalysisLogic',
-        'pulsegenerator': 'PulserInterface',
-        'scannerlogic': 'ScannerLogic',
-        'optimizerlogic': 'OptimizerLogic',
-        'pulsedmasterlogic': 'PulsedMasterLogic',
-        'odmrlogic': 'ODMRLogic'
-    }
+    savelogic = Connector(interface='SaveLogic')
+    fitlogic = Connector(interface='FitLogic')
+    fastcounter = Connector(interface='FastCounterInterface')
+    pulseextractionlogic = Connector(interface='PulseExtractionLogic')
+    pulsedmeasurementlogic = Connector(interface='PulsedMeasurementLogic')
+    traceanalysislogic1 = Connector(interface='TraceAnalysisLogic')
+    pulsegenerator = Connector(interface='PulserInterface')
+    scannerlogic = Connector(interface='ScannerLogic')
+    optimizerlogic = Connector(interface='OptimizerLogic')
+    pulsedmasterlogic = Connector(interface='PulsedMasterLogic')
+    odmrlogic = Connector(interface='ODMRLogic')
 
     # add possible signals here
     sigHistogramUpdated = QtCore.Signal()
@@ -67,11 +67,11 @@ class SingleShotLogic(GenericLogic):
         """
         super().__init__(config=config, **kwargs)
 
-        self.log.info('The following configuration was found.')
+        self.log.debug('The following configuration was found.')
 
         # checking for the right configuration
         for key in config.keys():
-            self.log.info('{0}: {1}'.format(key, config[key]))
+            self.log.debug('{0}: {1}'.format(key, config[key]))
 
         # initalize internal variables here
         self.hist_data = None
@@ -79,16 +79,8 @@ class SingleShotLogic(GenericLogic):
 
         self.data_dict = None
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
 
         self._fast_counter_device = self.get_connector('fastcounter')
@@ -108,7 +100,7 @@ class SingleShotLogic(GenericLogic):
         self.sigMeasurementFinished.connect(self.ssr_measurement_analysis)
 
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
 
         @param object e: Event class object from Fysom. A more detailed

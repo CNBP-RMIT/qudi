@@ -19,7 +19,7 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
-from core.base import Base
+from core.module import Base, ConfigOption
 from interface.simple_laser_interface import SimpleLaserInterface
 from interface.simple_laser_interface import ControlMode
 from interface.simple_laser_interface import ShutterState
@@ -41,22 +41,16 @@ class MillenniaeVLaser(Base, SimpleLaserInterface):
     _modclass = 'millenniaevlaser'
     _modtype = 'hardware'
 
-    def on_activate(self, e):
+    serial_interface = ConfigOption('interface', 'ASRL1::INSTR', missing='warn')
+    maxpower = ConfigOption('maxpower', 25.0, missing='warn')
+
+    def on_activate(self):
         """ Activate Module.
-
-        @param e: fysom state transition information
         """
-        config = self.getConfiguration()
-        self.connect_laser(config['interface'])
-        if 'maxpower' in config:
-            self.maxpower = config['maxpower']
-        else:
-            self.maxpower = 25.0
+        self.connect_laser(self.serial_interface)
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate module
-
-        @param e: fysom state transition information
         """
         self.disconnect_laser()
 
@@ -93,7 +87,7 @@ class MillenniaeVLaser(Base, SimpleLaserInterface):
 
     def allowed_control_modes(self):
         """ Control modes for this laser
-        
+
             @return ControlMode: available control modes
         """
         return [ControlMode.MIXED]
@@ -228,7 +222,7 @@ class MillenniaeVLaser(Base, SimpleLaserInterface):
     def get_tower_temperature(self):
         """ Get SHG tower temperature
 
-            @return float: SHG tower temperature in degrees Celsius 
+            @return float: SHG tower temperature in degrees Celsius
         """
         return float(self.inst.query('?TT'))
 
@@ -301,14 +295,14 @@ class MillenniaeVLaser(Base, SimpleLaserInterface):
 
     def on(self):
         """ Turn laser on.
-            
+
             @return LaserState: actual laser state
         """
         return self.set_laser_state(LaserState.ON)
 
     def off(self):
         """ Turn laser off.
-            
+
             @return LaserState: actual laser state
         """
         return self.set_laser_state(LaserState.OFF)

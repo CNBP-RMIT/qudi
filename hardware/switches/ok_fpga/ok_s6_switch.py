@@ -22,7 +22,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 import os
 import okfrontpanel as ok
-from core.base import Base
+from core.module import Base, ConfigOption
 from core.util.mutex import Mutex
 from interface.switch_interface import SwitchInterface
 
@@ -41,29 +41,12 @@ class HardwareSwitchFpga(Base, SwitchInterface):
     _modclass = 'HardwareSwitchFpga'
     _modtype = 'hardware'
 
-    def on_activate(self, e):
+    # config options
+    _serial = ConfigOption('fpga_serial', missing='error')
+
+    def on_activate(self):
         """ Connect and configure the access to the FPGA.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event
-                         the state before the event happens and the destination
-                         of the state which should be reached after the event
-                         has happen.
         """
-
-        config = self.getConfiguration()
-
-        if 'fpga_serial' in config.keys():
-            self._serial = config['fpga_serial']
-        else:
-            self.log.error('No parameter "fpga_serial" specified in the config! Set the '
-                           'serial number for the currently used fpga counter!\nOpen the Opal '
-                           'Kelly Frontpanel to obtain the serial number of the connected FPGA.\n'
-                           'Do not forget to close the Frontpanel before starting the Qudi program.'
-                           )
-
         # Create an instance of the Opal Kelly FrontPanel. The Frontpanel is a
         # c dll which was wrapped with SWIG for Windows type systems to be
         # accessed with python 3.4. You have to ensure to use the python 3.4
@@ -82,11 +65,8 @@ class HardwareSwitchFpga(Base, SwitchInterface):
         self._connect()
         return
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate the FPGA.
-
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
         """
         self.reset()
         del self._fpga

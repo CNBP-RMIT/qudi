@@ -21,7 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 import visa
 
-from core.base import Base
+from core.module import Base, ConfigOption
 from interface.simple_data_interface import SimpleDataInterface
 
 
@@ -31,30 +31,18 @@ class SimpleAcq(Base, SimpleDataInterface):
     _modclass = 'simple'
     _modtype = 'hardware'
 
-    def on_activate(self, e):
+    resource = ConfigOption('interface', 'ASRL1::INSTR', missing='warn')
+    baudrate = ConfigOption('baudrate', 115200, missing='warn')
+
+    def on_activate(self):
         """ Activate module.
-
-            @param object e: fysom state transition information
         """
-        config = self.getConfiguration()
-        if 'interface' in config:
-            self.resource = config['interface']
-        else:
-            self.resource = 'ASRL1::INSTR'
-
-        if 'baudrate' in config:
-            self.baudrate = config['baudrate']
-        else:
-            self.baudrate = 115200
-
         self.rm = visa.ResourceManager()
         self.log.debug('Resources: {0}'.format(self.rm.list_resources()))
         self.my_instrument = self.rm.open_resource(self.resource, baud_rate=self.baudrate)
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate module.
-
-            @param object e: fysom state transition information
         """
         self.my_instrument.close()
         self.rm.close()

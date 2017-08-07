@@ -20,13 +20,14 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 
-from qtpy import QtCore
-from collections import OrderedDict
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
+from collections import OrderedDict
+from core.module import Connector
 from core.util.mutex import Mutex
 from logic.generic_logic import GenericLogic
+from qtpy import QtCore
 
 
 class PulsedExtractionExternalLogic(GenericLogic):
@@ -43,11 +44,9 @@ class PulsedExtractionExternalLogic(GenericLogic):
     _modtype = 'logic'
 
     # declare connectors
-    _connectors = {
-        'savelogic': 'SaveLogic',
-        'pulseextractionlogic': 'PulseExtractionLogic',
-        'pulseanalysislogic': 'PulseAnalysisLogic'
-    }
+    savelogic = Connector(interface='SaveLogic')
+    pulseextractionlogic = Connector(interface='PulseExtractionLogic')
+    pulseanalysislogic = Connector(interface='PulseAnalysisLogic')
 
     def __init__(self, **kwargs):
         """ Create QdplotLogic object with connectors.
@@ -59,28 +58,15 @@ class PulsedExtractionExternalLogic(GenericLogic):
         # locking for thread safety
         self.threadlock = Mutex()
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event
-                         the state before the event happens and the destination
-                         of the state which should be reached after the event
-                         has happen.
         """
-
-
         self._save_logic = self.get_connector('savelogic')
         self._pe_logic = self.get_connector('pulseextractionlogic')
         self._pa_logic = self.get_connector('pulseanalysislogic')
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
         """
         return
 

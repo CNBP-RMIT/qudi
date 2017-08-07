@@ -19,12 +19,13 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+from qtpy import QtCore
 import numpy as np
 
 import random
 import time
 
-from core.base import Base
+from core.module import Base, ConfigOption
 from interface.slow_counter_interface import SlowCounterInterface
 from interface.slow_counter_interface import SlowCounterConstraints
 from interface.slow_counter_interface import CountingMode
@@ -35,64 +36,30 @@ class SlowCounterDummy(Base, SlowCounterInterface):
     """This is the Interface class to define the controls for the simple
     microwave hardware.
     """
+
+    sigOverstepCounter = QtCore.Signal()
+    sigReleaseCounter = QtCore.Signal()
+
     _modclass = 'SlowCounterDummy'
     _modtype = 'hardware'
+
+    # config
+    _clock_frequency = ConfigOption('clock_frequency', 100, missing='warn')
+    _samples_number = ConfigOption('samples_number', 10, missing='warn')
+    source_channels = ConfigOption('source_channels', 2, missing='warn')
+    dist = ConfigOption('count_distribution', 'dark_bright_gaussian')
+
+    # 'No parameter "count_distribution" given in the configuration for the'
+    # 'Slow Counter Dummy. Possible distributions are "dark_bright_gaussian",'
+    # '"uniform", "exponential", "single_poisson", "dark_bright_poisson"'
+    # 'and "single_gaussian".'
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{0}: {1}'.format(key, config[key]))
-
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Fysom.event object from Fysom class.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
-
-        config = self.getConfiguration()
-
-        if 'clock_frequency' in config.keys():
-            self._clock_frequency=config['clock_frequency']
-        else:
-            self._clock_frequency = 100
-            self.log.warning('No parameter "clock_frequency" configured in '
-                    'Slow Counter Dummy, taking the default value of {0} Hz '
-                    'instead.'.format(self._clock_frequency))
-
-        if 'samples_number' in config.keys():
-            self._samples_number = config['samples_number']
-        else:
-            self._samples_number = 10
-            self.log.warning('No parameter "samples_number" configured in '
-                    'Slow Counter Dummy, taking the default value of {0} '
-                    'instead.'.format(self._samples_number))
-
-        if 'source_channels' in config.keys():
-            self.source_channels = int(config['source_channels'])
-        else:
-            self.source_channels = 2
-
-        if 'count_distribution' in config.keys():
-            self.dist = config['count_distribution']
-        else:
-            self.dist = 'dark_bright_gaussian'
-            self.log.warning(
-                'No parameter "count_distribution" given in the configuration for the'
-                'Slow Counter Dummy. Possible distributions are "dark_bright_gaussian",'
-                '"uniform", "exponential", "single_poisson", "dark_bright_poisson"'
-                'and "single_gaussian". Taking the default distribution "{0}".'
-                ''.format(self.dist))
-
         # parameters
         if self.dist == 'dark_bright_poisson':
             self.mean_signal = 250
@@ -112,11 +79,8 @@ class SlowCounterDummy(Base, SlowCounterInterface):
         self.curr_state_b = True
         self.total_time = 0.0
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method activation.
         """
         self.log.warning('slowcounterdummy>deactivation')
 

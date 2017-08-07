@@ -20,16 +20,18 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+import numpy as np
+import os
+import pyqtgraph as pg
+import time
+
+from core.module import Connector
+from gui.colordefs import QudiPalettePale as palette
 from gui.guibase import GUIBase
 from interface.simple_laser_interface import ControlMode, ShutterState, LaserState
-from gui.colordefs import QudiPalettePale as palette
 from qtpy import QtCore
 from qtpy import QtWidgets
 from qtpy import uic
-import numpy as np
-import pyqtgraph as pg
-import time
-import os
 
 
 class TimeAxisItem(pg.AxisItem):
@@ -67,7 +69,7 @@ class LaserGUI(GUIBase):
     _modtype = 'gui'
 
     ## declare connectors
-    _connectors = {'laserlogic': 'LaserLogic'}
+    laserlogic = Connector(interface='LaserLogic')
 
     sigLaser = QtCore.Signal(bool)
     sigShutter = QtCore.Signal(bool)
@@ -78,16 +80,8 @@ class LaserGUI(GUIBase):
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
-    def on_activate(self, e=None):
+    def on_activate(self):
         """ Definition and initialisation of the GUI plus staring the measurement.
-
-        @param object e: Fysom.event object from Fysom class.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
         self._laser_logic = self.get_connector('laserlogic')
 
@@ -148,11 +142,8 @@ class LaserGUI(GUIBase):
         self._mw.setValueDoubleSpinBox.editingFinished.connect(self.updateFromSpinBox)
         self._laser_logic.sigUpdate.connect(self.updateGui)
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate the module properly.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
         self._mw.close()
 
@@ -227,7 +218,7 @@ class LaserGUI(GUIBase):
             self.sigCtrlMode.emit(ControlMode.CURRENT)
         else:
             self.log.error('How did you mess up the radio button group?')
-        
+
     @QtCore.Slot()
     def updateButtonsEnabled(self):
         """ Logic told us to update our button states, so set the buttons accordingly. """

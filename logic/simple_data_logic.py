@@ -19,10 +19,11 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
-from qtpy import QtCore
 import numpy as np
 
+from core.module import Connector
 from logic.generic_logic import GenericLogic
+from qtpy import QtCore
 
 
 class SimpleDataLogic(GenericLogic):
@@ -30,24 +31,21 @@ class SimpleDataLogic(GenericLogic):
     """
     _modclass = 'smple_data'
     _modtype = 'logic'
-    _connectors = {'simpledata': 'SimpleData'}
+
+    simpledata = Connector(interface='SimpleDataInterface')
 
     sigRepeat = QtCore.Signal()
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Prepare logic module for work.
-
-          @param object e: Fysom state change notification
         """
         self._data_logic = self.get_connector('simpledata')
         self.stopRequest = False
         self.bufferLength = 10000
         self.sigRepeat.connect(self.measureLoop, QtCore.Qt.QueuedConnection)
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deactivate modeule.
-
-          @param object e: Fysom state change notification
         """
         self.stopMeasure()
 

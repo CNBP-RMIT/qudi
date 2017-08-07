@@ -26,7 +26,7 @@ import numpy as np
 
 from logic.generic_logic import GenericLogic
 from interface.pid_controller_interface import PIDControllerInterface
-
+from core.module import Connector, ConfigOption, StatusVar
 
 class SoftPIDController(GenericLogic, PIDControllerInterface):
     """
@@ -34,11 +34,20 @@ class SoftPIDController(GenericLogic, PIDControllerInterface):
     """
     _modclass = 'pidlogic'
     _modtype = 'logic'
+
     ## declare connectors
-    _connectors = {
-        'process': 'ProcessInterface',
-        'control': 'ProcessControlInterface',
-        }
+    process = Connector(interface='ProcessInterface')
+    control = Connector(interface='ProcessControlInterface')
+
+    # config opt
+    timestep = ConfigOption(default=100)
+
+    # status vars
+    kP = StatusVar(default=1)
+    kI = StatusVar(default=1)
+    kD = StatusVar(default=1)
+    setpoint = StatusVar(default=273.15)
+    manualvalue = StatusVar(default=0)
 
     sigNewValue = QtCore.Signal(float)
 
@@ -55,49 +64,14 @@ class SoftPIDController(GenericLogic, PIDControllerInterface):
         self.NumberOfSecondsLog = 100
         self.threadlock = Mutex()
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-            @param object e: fysom state transition object
         """
         self._process = self.get_connector('process')
         self._control = self.get_connector('control')
 
         self.previousdelta = 0
         self.cv = self._control.getControlValue()
-
-        config = self.getConfiguration()
-        if 'timestep' in config:
-            self.timestep = config['timestep']
-        else:
-            self.timestep = 100
-            self.log.warn('No time step configured, using 100ms')
-
-        # load parameters stored in app state store
-        if 'kP' in self._statusVariables:
-            self.kP = self._statusVariables['kP']
-        else:
-            self.kP = 1
-        if 'kI' in self._statusVariables:
-            self.kI = self._statusVariables['kI']
-        else:
-            self.kI = 1
-        if 'kD' in self._statusVariables:
-            self.kD = self._statusVariables['kD']
-        else:
-            self.kD = 1
-        if 'setpoint' in self._statusVariables:
-            self.setpoint = self._statusVariables['setpoint']
-        else:
-            self.setpoint = 273.15
-        #if 'enable' in self._statusVariables:
-        #    self.enable = self._statusVariables['enable']
-        #else:
-        #    self.enable = False
-        if 'manualvalue' in self._statusVariables:
-            self.manualvalue = self._statusVariables['manualvalue']
-        else:
-            self.manualvalue = 0
 
         self.timer = QtCore.QTimer()
         self.timer.setSingleShot(True)
@@ -114,18 +88,10 @@ class SoftPIDController(GenericLogic, PIDControllerInterface):
 
         self.timer.start(self.timestep)
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Perform required deactivation.
-        
-            @param object e: fysom state transition object
         """
-
-        # save parameters stored in app state store
-        self._statusVariables['kP'] = self.kP
-        self._statusVariables['kI'] = self.kI
-        self._statusVariables['kD'] = self.kD
-        self._statusVariables['setpoint'] = self.setpoint
-        self._statusVariables['enable'] = self.enable
+        pass
 
     def _calcNextStep(self):
         """ This function implements the Takahashi Type C PID
@@ -190,7 +156,7 @@ class SoftPIDController(GenericLogic, PIDControllerInterface):
 
     def getSavingState(self):
         """ Find out if we are keeping data for saving later.
-        
+
             @return bool: whether module is saving process and control data
         """
         return self.savingState
@@ -218,7 +184,7 @@ class SoftPIDController(GenericLogic, PIDControllerInterface):
 
     def set_kp(self, kp):
         """ Set the proportional constant of the PID controller.
-            
+
             @prarm float kp: proportional constant of PID controller
         """
         self.kP = kp

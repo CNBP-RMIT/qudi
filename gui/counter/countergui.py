@@ -21,15 +21,16 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 import numpy as np
-import pyqtgraph as pg
 import os
+import pyqtgraph as pg
 
+from core.module import Connector
+from gui.colordefs import QudiPalettePale as palette
+from gui.guibase import GUIBase
 from qtpy import QtCore
 from qtpy import QtWidgets
 from qtpy import uic
 
-from gui.guibase import GUIBase
-from gui.colordefs import QudiPalettePale as palette
 
 
 class CounterMainWindow(QtWidgets.QMainWindow):
@@ -55,7 +56,7 @@ class CounterGui(GUIBase):
     _modtype = 'gui'
 
     # declare connectors
-    _connectors = {'counterlogic1': 'CounterLogic'}
+    counterlogic1 = Connector(interface='CounterLogic')
 
     sigStartCounter = QtCore.Signal()
     sigStopCounter = QtCore.Signal()
@@ -63,22 +64,8 @@ class CounterGui(GUIBase):
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{0}: {1}'.format(key, config[key]))
-
-    def on_activate(self, e):
+    def on_activate(self):
         """ Definition and initialisation of the GUI.
-
-        @param object e: Fysom.event object from Fysom class.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
 
         self._counting_logic = self.get_connector('counterlogic1')
@@ -180,12 +167,9 @@ class CounterGui(GUIBase):
         self._mw.raise_()
         return
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         # FIXME: !
         """ Deactivate the module
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method initUI.
         """
         # disconnect signals
         self._mw.start_counter_Action.triggered.disconnect()
