@@ -819,14 +819,20 @@ def estimate_twoDgaussian(self, x_axis, y_axis, data, params):
     #            len_y=len(data)/len_x
 
     amplitude = float(data.max() - data.min())
+    offset = float(data.min())
+    theta = 0.0
 
     center_x = x_axis[data.argmax()]
     center_y = y_axis[data.argmax()]
 
-    sigma_x = (x_axis.max() - x_axis.min()) / 3.
-    sigma_y = (y_axis.max() - y_axis.min()) / 3.
-    theta = 0.0
-    offset = float(data.min())
+    # Adaptive estimation of the spot diameter:
+    # finds the point closest to the Half-Maximum plane and measures its distance from the center
+    hwhm_z_cut = np.abs(data - offset - 0.5*amplitude)
+    hwhm_x = x_axis[hwhm_z_cut.argmin()]
+    hwhm_y = y_axis[hwhm_z_cut.argmin()]
+    radius = np.sqrt((center_x - hwhm_x)**2 + (center_y - hwhm_y)**2)
+    sigma_x = radius
+    sigma_y = radius
 
     # check for sensible values
     parameters = [x_axis, y_axis, data]
