@@ -831,8 +831,8 @@ def estimate_twoDgaussian(self, x_axis, y_axis, data, params):
     hwhm_x = x_axis[hwhm_z_cut.argmin()]
     hwhm_y = y_axis[hwhm_z_cut.argmin()]
     radius = np.sqrt((center_x - hwhm_x)**2 + (center_y - hwhm_y)**2)
-    sigma_x = radius
-    sigma_y = radius
+    sigma_x = np.max(radius, x_axis[1]-x_axis[0])
+    sigma_y = np.max(radius, y_axis[1]-y_axis[0])
 
     # check for sensible values
     parameters = [x_axis, y_axis, data]
