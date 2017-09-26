@@ -398,14 +398,14 @@ class SaveLogic(GenericLogic):
                           ''.format(filepath))
 
         # create filelabel if none has been passed
+        if filelabel is None:
+            filelabel = module_name
         if self.active_poi_name != '':
             filelabel = self.active_poi_name.replace(' ', '_') + '_' + filelabel
 
         # determine proper unique filename to save if none has been passed
         if filename is None:
-            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + module_name + '.dat')
-        if filelabel is not None:
-            filename = filename[:-4] + '_' + filelabel + '.dat'
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.dat')
 
         # Check format specifier.
         if not isinstance(fmt, str) and len(fmt) != len(data):
