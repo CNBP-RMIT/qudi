@@ -78,6 +78,7 @@ class SlowCounterDummy(Base, SlowCounterInterface):
         self.current_dec_time = self.life_time_bright
         self.curr_state_b = True
         self.total_time = 0.0
+        self.sharing_status = 'private'
 
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.

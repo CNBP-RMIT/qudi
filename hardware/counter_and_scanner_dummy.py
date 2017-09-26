@@ -24,7 +24,7 @@ import numpy as np
 import random
 import time
 
-from core.base import Base
+from core.module import Base
 from interface.confocal_scanner_interface import ConfocalScannerInterface
 from interface.slow_counter_interface import SlowCounterInterface
 from interface.slow_counter_interface import SlowCounterConstraints
@@ -213,25 +213,14 @@ class CounterScannerDummy(Base, SlowCounterInterface, ConfocalScannerInterface):
 
         @return int: error code (0:OK, -1:error)
         """
-        if not scanner and self.sharing_status == 'private':
-            self.sharing_status = 'interruptable'
+        if not scanner:
             self.log.warning('slowcounterdummy>set_up_clock')
 
         if scanner:
-            # Check if the current task can be interrupted
-            if self.sharing_status != 'interruptable':
-                self.log.error('Another scanner clock is already running, close this one first.')
-                return -1
-            else:
-                self.sigOverstepCounter.emit()
-                self.sharing_status = 'interrupted'
-                self.log.warning('Existing counter clock interrupted.')
-                self.log.warning('scannerdummy>set_up_clock')
+            self.log.warning('scannerdummy>set_up_clock')
 
         if clock_frequency is not None:
             self._clock_frequency = float(clock_frequency)
-
-        self.log.warning('Current sharing status is {0}'.format(self.sharing_status))
 
         time.sleep(0.1)
         return 0
@@ -359,16 +348,8 @@ class CounterScannerDummy(Base, SlowCounterInterface, ConfocalScannerInterface):
         # Set the task handle to None as a safety and manage interrupted tasks
         if scanner:
             self.log.warning('scannerdummy>close_clock')
-            if self.sharing_status == 'interrupted':
-                self.sigReleaseCounter.emit()
-                self.sharing_status = 'interruptable'
-                self.log.warning('Previously interrupted counter clock will restart.')
         else:
             self.log.warning('slowcounterdummy>close_clock')
-            if self.sharing_status == 'interruptable':
-                self.sharing_status = 'private'
-
-        self.log.warning('Current sharing status is {0}'.format(self.sharing_status))
 
         return 0
 
