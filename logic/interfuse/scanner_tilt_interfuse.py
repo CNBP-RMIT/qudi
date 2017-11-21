@@ -19,6 +19,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 import copy
+from time import sleep
 
 from core.module import Connector
 from logic.generic_logic import GenericLogic
@@ -112,6 +113,14 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
 
         @return int: error code (0:OK, -1:error)
         """
+        # Before setting up the scanner, check if a counter is on and if it can be interrupted
+        if self._scanning_device.sharing_status == 'interruptable':
+            self._scanning_device.sigOverstepCounter.emit()
+            while self._scanning_device.getState() == 'locked':
+                sleep(0.01)
+            self._scanning_device.sharing_status = 'interrupted'
+            self.log.warning('Existing counter clock interrupted.')
+
         return self._scanning_device.set_up_scanner_clock(clock_frequency, clock_channel)
 
     def set_up_scanner(self, counter_channel=None, photon_source=None,
@@ -203,6 +212,15 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
 
         @return int: error code (0:OK, -1:error)
         """
+        # If a counter was interrupted, restart it
+        if self._scanning_device.sharing_status == 'interrupted':
+            self._scanning_device.sigReleaseCounter.emit()
+            while self._scanning_device.getState() == 'locked':
+                sleep(0.01)
+            self._scanning_device.sharing_status = 'interruptable'
+            self.log.warning(
+                'Previously interrupted counter clock will restart.')
+
         return self._scanning_device.close_scanner_clock()
 
     def _calc_dz(self, x, y):
