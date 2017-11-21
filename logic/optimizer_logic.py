@@ -725,12 +725,16 @@ class OptimizerLogic(GenericLogic):
                 'A pixel-line in the image corresponds to a row '
                 'of entries where the Signal is in counts/s:'] = self.xy_refocus_image[:, :, 3 + n]
 
-            filelabel = 'XYscan'
-            if len(self.get_scanner_count_channels()) > 1:
-                filelabel = filelabel + '_{0}'.format(ch.replace('/', ''))
+            filelabel = 'optimizer_xy_scan_{0}'.format(ch.replace('/', ''))
+            if filename is not None:
+                filenameXY = filename[:-4] + '_xy_scan.dat'
+                if len(self.get_scanner_count_channels()) > 1:
+                    filenameCh = filenameXY[:-4] + '_ch{0}.dat'.format(ch.replace('/', ''))
+            else:
+                filenameCh = filename
             self._save_logic.save_data(image_data,
                                        filepath=filepath,
-                                       filename=filename,
+                                       filename=filenameCh,
                                        parameters=parameters,
                                        filelabel=filelabel,
                                        fmt='%.6e',
@@ -756,22 +760,28 @@ class OptimizerLogic(GenericLogic):
             parametersZ[
                 'Return Slowness (Steps during retrace line)'] = self.return_slowness
 
-            # Save the plot data
-            image_dataZ = OrderedDict()
-            image_dataZ['z position (m)'] = self._zimage_Z_values
-            for n, ch in enumerate(self.get_scanner_count_channels()):
-                # data for the text-array "image":
-                image_dataZ['Signal{0} (counts/s)'.format(ch.replace('/', ''))] \
-                    = self.z_refocus_line[:, n]
+            # Save the plot data, all channels in the same file
+            # Beacuse of that, it can be done only for the first channel iteration
+            if n == 0:
+                image_dataZ = OrderedDict()
+                image_dataZ['z position (m)'] = self._zimage_Z_values
+                for n, ch in enumerate(self.get_scanner_count_channels()):
+                    # data for the text-array "image":
+                    image_dataZ['Signal{0} (counts/s)'.format(ch.replace('/', ''))] \
+                        = self.z_refocus_line[:, n]
 
-            filelabelZ = 'Zscan'
-            self._save_logic.save_data(image_dataZ,
-                                       filepath=filepath,
-                                       filename=filename,
-                                       parameters=parametersZ,
-                                       filelabel=filelabelZ,
-                                       fmt='%.6e',
-                                       delimiter='\t')
+                filelabelZ = 'optimizer_z_scan'
+                if filename is not None:
+                    filenameCh = filename[:-4] + '_z_scan.dat'
+                else:
+                    filenameCh = filename
+                self._save_logic.save_data(image_dataZ,
+                                           filepath=filepath,
+                                           filename=filenameCh,
+                                           parameters=parametersZ,
+                                           filelabel=filelabelZ,
+                                           fmt='%.6e',
+                                           delimiter='\t')
 
         self.log.debug('Optimizer Image saved.')
         self.signal_optimizer_data_saved.emit() # Who does even catch this for the confocal scan?
