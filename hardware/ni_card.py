@@ -424,22 +424,13 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
         @return int: error code (0:OK, -1:error)
         """
 
-        if not scanner:
-            if (self._clock_daq_task is not None or self._scanner_clock_daq_task is not None):
-                self.log.error('Another counter clock is already running, close this one first.')
-                return -1
-            elif self.sharing_status == 'private':
-                self.sharing_status = 'interruptable'
+        if not scanner and self._clock_daq_task is not None:
+            self.log.error('Another counter clock is already running, close this one first.')
+            return -1
 
-        if scanner and (self._clock_daq_task is not None or self._scanner_clock_daq_task is not None):
-            # Check if the current task can be interrupted
-            if self.sharing_status != 'interruptable':
-                self.log.error('Another scanner clock is already running, close this one first.')
-                return -1
-            else:
-                self.sigOverstepCounter.emit()
-                self.sharing_status = 'interrupted'
-                self.log.warning('Existing counter clock interrupted.')
+        if scanner and self._scanner_clock_daq_task is not None:
+            self.log.error('Another scanner clock is already running, close this one first.')
+            return -1
 
         # Create handle for task, this task will generate pulse signal for
         # photon counting
@@ -473,13 +464,13 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
 
         # check whether only one clock pair is available, since some NI cards
         # only one clock channel pair.
-        # if self._scanner_clock_channel == self._clock_channel:
-        #     if not ((self._clock_daq_task is None) and (self._scanner_clock_daq_task is None)):
-        #         self.log.error(
-        #             'Only one clock channel is available!\n'
-        #             'Another clock is already running, close this one first '
-        #             'in order to use it for your purpose!')
-        #         return -1
+        if self._scanner_clock_channel == self._clock_channel:
+            if not ((self._clock_daq_task is None) and (self._scanner_clock_daq_task is None)):
+                self.log.error(
+                    'Only one clock channel is available!\n'
+                    'Another clock is already running, close this one first '
+                    'in order to use it for your purpose!')
+                return -1
 
         # Adjust the idle state if necessary
         my_idle = daq.DAQmx_Val_High if idle else daq.DAQmx_Val_Low
@@ -799,17 +790,11 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
             # After stopping delete all the configuration of the clock:
             daq.DAQmxClearTask(my_task)
 
-            # Set the task handle to None as a safety and manage interrupted tasks
+            # Set the task handle to None as a safety
             if scanner:
                 self._scanner_clock_daq_task = None
-                if self.sharing_status == 'interrupted':
-                    self.sigReleaseCounter.emit()
-                    self.sharing_status = 'interruptable'
-                    self.log.warning('Previously interrupted counter clock will restart.')
             else:
                 self._clock_daq_task = None
-                if self.sharing_status == 'interruptable':
-                    self.sharing_status = 'private'
         except:
             self.log.exception('Could not close clock.')
             return -1
