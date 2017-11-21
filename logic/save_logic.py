@@ -507,7 +507,7 @@ class SaveLogic(GenericLogic):
                 metadata['ModDate'] = time
 
             # determine the PDF-Filename
-            fig_fname_vector = os.path.join(filepath, filename)[:-4] + '_fig.pdf'
+            fig_fname_vector = os.path.join(filepath, filename)[:-4] + '.pdf'
 
             # Create the PdfPages object to which we will save the pages:
             # The with statement makes sure that the PdfPages object is closed properly at
@@ -521,7 +521,7 @@ class SaveLogic(GenericLogic):
                     pdf_metadata[x] = metadata[x]
 
             # determine the PNG-Filename and save the plain PNG
-            fig_fname_image = os.path.join(filepath, filename)[:-4] + '_fig.png'
+            fig_fname_image = os.path.join(filepath, filename)[:-4] + '.png'
             plotfig.savefig(fig_fname_image, bbox_inches='tight', pad_inches=0.05)
 
             # Use Pillow (an fork for PIL) to attach metadata to the PNG
