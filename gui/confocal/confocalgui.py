@@ -490,7 +490,14 @@ class ConfocalGui(GUIBase):
 
         # Take the default values from logic:
         self._mw.xy_res_InputWidget.setValue(self._scanning_logic.xy_resolution)
+        self._mw.y_res_InputWidget.setValue(self._scanning_logic.xy_resolution)
         self._mw.z_res_InputWidget.setValue(self._scanning_logic.z_resolution)
+        self._mw.xy_res_um_InputWidget.setValue(
+            (self._scanning_logic.image_x_range[1] - self._scanning_logic.image_x_range[0]) / self._scanning_logic.xy_resolution)
+        self._mw.y_res_um_InputWidget.setValue(
+            (self._scanning_logic.image_y_range[1] - self._scanning_logic.image_y_range[0]) / self._scanning_logic.xy_resolution)
+        self._mw.z_res_um_InputWidget.setValue(
+            (self._scanning_logic.image_z_range[1] - self._scanning_logic.image_z_range[0]) / self._scanning_logic.z_resolution)
 
         # Update the inputed/displayed numbers if the cursor has left the field:
         self._mw.x_current_InputWidget.editingFinished.connect(self.update_from_input_x)
@@ -499,6 +506,10 @@ class ConfocalGui(GUIBase):
 
         self._mw.xy_res_InputWidget.editingFinished.connect(self.change_xy_resolution)
         self._mw.z_res_InputWidget.editingFinished.connect(self.change_z_resolution)
+        self._mw.xy_res_um_InputWidget.editingFinished.connect(self.change_xy_resolution)
+        self._mw.z_res_um_InputWidget.editingFinished.connect(self.change_z_resolution)
+        self._mw.pixel_res_RadioButton.clicked.connect(self.update_res_input)
+        self._mw.um_res_RadioButton.clicked.connect(self.update_res_input)
 
         self._mw.x_min_InputWidget.editingFinished.connect(self.change_x_image_range)
         self._mw.x_max_InputWidget.editingFinished.connect(self.change_x_image_range)
@@ -908,8 +919,12 @@ class ConfocalGui(GUIBase):
         self._mw.z_min_InputWidget.setEnabled(False)
         self._mw.z_max_InputWidget.setEnabled(False)
 
+        self._mw.pixel_res_RadioButton.setEnabled(False)
+        self._mw.um_res_RadioButton.setEnabled(False)
         self._mw.xy_res_InputWidget.setEnabled(False)
         self._mw.z_res_InputWidget.setEnabled(False)
+        self._mw.xy_res_um_InputWidget.setEnabled(False)
+        self._mw.z_res_um_InputWidget.setEnabled(False)
 
         # Set the zoom button if it was pressed to unpressed and disable it
         self._mw.action_zoom.setChecked(False)
@@ -938,8 +953,9 @@ class ConfocalGui(GUIBase):
         self._mw.z_min_InputWidget.setEnabled(True)
         self._mw.z_max_InputWidget.setEnabled(True)
 
-        self._mw.xy_res_InputWidget.setEnabled(True)
-        self._mw.z_res_InputWidget.setEnabled(True)
+        self.update_res_input()
+        self._mw.pixel_res_RadioButton.setEnabled(True)
+        self._mw.um_res_RadioButton.setEnabled(True)
 
         self._mw.action_zoom.setEnabled(True)
 
@@ -1459,18 +1475,52 @@ class ConfocalGui(GUIBase):
     def change_xy_resolution(self):
         """ Update the xy resolution in the logic according to the GUI.
         """
+        x_range = self._scanning_logic.image_x_range[1] - self._scanning_logic.image_x_range[0]
+        y_range = self._scanning_logic.image_y_range[1] - self._scanning_logic.image_y_range[0]
+        using_pixels = self._mw.pixel_res_RadioButton.isChecked()
+        if using_pixels:
+            res_um = x_range / self._mw.xy_res_InputWidget.value()
+            self._mw.xy_res_um_InputWidget.setValue(res_um)
+        else:
+            res_pixel = np.around(x_range / self._mw.xy_res_um_InputWidget.value())
+            self._mw.xy_res_InputWidget.setValue(res_pixel)
+            # Correct the shown resolution to match an integer number of pixel:
+            self._mw.xy_res_um_InputWidget.setValue(x_range / res_pixel)
+        # Update pixel and um y values
+        self._mw.y_res_InputWidget.setValue((y_range / x_range) * self._mw.xy_res_InputWidget.value())
+        self._mw.y_res_um_InputWidget.setValue(self._mw.xy_res_um_InputWidget.value())
         self._scanning_logic.xy_resolution = self._mw.xy_res_InputWidget.value()
 
     def change_z_resolution(self):
         """ Update the z resolution in the logic according to the GUI.
         """
+        z_range = self._scanning_logic.image_z_range[1] - self._scanning_logic.image_z_range[0]
+        using_pixels = self._mw.pixel_res_RadioButton.isChecked()
+        if using_pixels:
+            res_um = z_range / self._mw.z_res_InputWidget.value()
+            self._mw.z_res_um_InputWidget.setValue(res_um)
+        else:
+            res_pixel = np.floor(z_range / self._mw.z_res_um_InputWidget.value())
+            self._mw.z_res_InputWidget.setValue(res_pixel)
+            # Correct the shown resolution to match an integer number of pixel:
+            self._mw.z_res_um_InputWidget.setValue(z_range / res_pixel)
         self._scanning_logic.z_resolution = self._mw.z_res_InputWidget.value()
+
+    def update_res_input(self):
+        """ Update which input box is enabled according to the radio buttons.
+        """
+        using_pixels = self._mw.pixel_res_RadioButton.isChecked()
+        self._mw.xy_res_InputWidget.setEnabled(using_pixels)
+        self._mw.z_res_InputWidget.setEnabled(using_pixels)
+        self._mw.xy_res_um_InputWidget.setEnabled(not using_pixels)
+        self._mw.z_res_um_InputWidget.setEnabled(not using_pixels)
 
     def change_x_image_range(self):
         """ Adjust the image range for x in the logic. """
         self._scanning_logic.image_x_range = [
             self._mw.x_min_InputWidget.value(),
             self._mw.x_max_InputWidget.value()]
+        self.change_xy_resolution()
 
     def change_y_image_range(self):
         """ Adjust the image range for y in the logic.
@@ -1478,12 +1528,14 @@ class ConfocalGui(GUIBase):
         self._scanning_logic.image_y_range = [
             self._mw.y_min_InputWidget.value(),
             self._mw.y_max_InputWidget.value()]
+        self.change_xy_resolution()
 
     def change_z_image_range(self):
         """ Adjust the image range for z in the logic. """
         self._scanning_logic.image_z_range = [
             self._mw.z_min_InputWidget.value(),
             self._mw.z_max_InputWidget.value()]
+        self.change_z_resolution()
 
     def update_tilt_correction(self):
         """ Update all tilt points from the scanner logic. """
