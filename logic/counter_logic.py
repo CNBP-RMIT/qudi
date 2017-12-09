@@ -426,6 +426,9 @@ class CounterLogic(GenericLogic):
                 self.unlock()
                 self.sigCountStatusChanged.emit(False)
                 return -1
+            else:
+                # If it managed to create the clock, then make it interruptable
+                self._counting_device.sharing_status = 'interruptable'
 
             # Set up counter
             if self._counting_mode == CountingMode['FINITE_GATED']:
@@ -460,6 +463,10 @@ class CounterLogic(GenericLogic):
         if self.getState() == 'locked':
             with self.threadlock:
                 self.stopRequested = True
+
+            if self._counting_device.sharing_status == 'interruptable':
+                self._counting_device.sharing_status = 'private'
+
         return
 
     def count_loop_body(self):

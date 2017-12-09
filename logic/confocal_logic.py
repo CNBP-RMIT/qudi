@@ -882,7 +882,6 @@ class ConfocalLogic(GenericLogic):
         parameters['Return Slowness (Steps during retrace line)'] = self.return_slowness
 
         # Prepare a figure to be saved
-        figure_data = self.xy_image[:, :, 3]
         image_extent = [self.image_x_range[0],
                         self.image_x_range[1],
                         self.image_y_range[0],
@@ -935,7 +934,7 @@ class ConfocalLogic(GenericLogic):
         if save_raw_data:
             filename = filename[:-4] + '_raw.dat'
             fig, ax = plt.subplots()
-            ax.imshow(figure_data,
+            ax.imshow(self.xy_image[:, :, 3],
                       cmap=plt.get_cmap('inferno'),
                       interpolation='none')
             ax.axis('off')
@@ -998,7 +997,6 @@ class ConfocalLogic(GenericLogic):
             axes = ['Y', 'Z']
             crosshair_pos = [self.get_position()[1], self.get_position()[2]]
 
-        figure_data = self.depth_image[:, :, 3]
         image_extent = [horizontal_range[0],
                         horizontal_range[1],
                         self.image_z_range[0],
@@ -1048,7 +1046,7 @@ class ConfocalLogic(GenericLogic):
         if save_raw_data:
             filename = filename[:-4] + '_raw.dat'
             fig, ax = plt.subplots()
-            ax.imshow(figure_data,
+            ax.imshow(self.depth_image[:, :, 3],
                       cmap=plt.get_cmap('inferno'),
                       interpolation='none')
             ax.axis('off')

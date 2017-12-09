@@ -398,14 +398,14 @@ class SaveLogic(GenericLogic):
                           ''.format(filepath))
 
         # create filelabel if none has been passed
+        if filelabel is None:
+            filelabel = module_name
         if self.active_poi_name != '':
             filelabel = self.active_poi_name.replace(' ', '_') + '_' + filelabel
 
         # determine proper unique filename to save if none has been passed
         if filename is None:
-            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + module_name + '.dat')
-        if filelabel is not None:
-            filename = filename[:-4] + '_' + filelabel + '.dat'
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.dat')
 
         # Check format specifier.
         if not isinstance(fmt, str) and len(fmt) != len(data):
@@ -507,7 +507,7 @@ class SaveLogic(GenericLogic):
                 metadata['ModDate'] = time
 
             # determine the PDF-Filename
-            fig_fname_vector = os.path.join(filepath, filename)[:-4] + '_fig.pdf'
+            fig_fname_vector = os.path.join(filepath, filename)[:-4] + '.pdf'
 
             # Create the PdfPages object to which we will save the pages:
             # The with statement makes sure that the PdfPages object is closed properly at
@@ -521,7 +521,7 @@ class SaveLogic(GenericLogic):
                     pdf_metadata[x] = metadata[x]
 
             # determine the PNG-Filename and save the plain PNG
-            fig_fname_image = os.path.join(filepath, filename)[:-4] + '_fig.png'
+            fig_fname_image = os.path.join(filepath, filename)[:-4] + '.png'
             plotfig.savefig(fig_fname_image, bbox_inches='tight', pad_inches=0.05)
 
             # Use Pillow (an fork for PIL) to attach metadata to the PNG
