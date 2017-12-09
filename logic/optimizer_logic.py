@@ -730,6 +730,8 @@ class OptimizerLogic(GenericLogic):
                 filenameXY = filename[:-4] + '_xy_scan.dat'
                 if len(self.get_scanner_count_channels()) > 1:
                     filenameCh = filenameXY[:-4] + '_ch{0}.dat'.format(ch.replace('/', ''))
+                else:
+                    filenameCh = filenameXY
             else:
                 filenameCh = filename
             self._save_logic.save_data(image_data,

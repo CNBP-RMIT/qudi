@@ -116,7 +116,7 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
         # Before setting up the scanner, check if a counter is on and if it can be interrupted
         if self._scanning_device.sharing_status == 'interruptable':
             self._scanning_device.sigOverstepCounter.emit()
-            while self._scanning_device.getState() == 'locked':
+            while not self._scanning_device._clock_daq_task is None:
                 sleep(0.01)
             self._scanning_device.sharing_status = 'interrupted'
             self.log.warning('Existing counter clock interrupted.')
@@ -215,8 +215,6 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
         # If a counter was interrupted, restart it
         if self._scanning_device.sharing_status == 'interrupted':
             self._scanning_device.sigReleaseCounter.emit()
-            while self._scanning_device.getState() == 'locked':
-                sleep(0.01)
             self._scanning_device.sharing_status = 'interruptable'
             self.log.warning(
                 'Previously interrupted counter clock will restart.')

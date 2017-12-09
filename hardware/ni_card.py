@@ -465,6 +465,8 @@ class NICard(Base, SlowCounterInterface, ConfocalScannerInterface, ODMRCounterIn
         # check whether only one clock pair is available, since some NI cards
         # only one clock channel pair.
         if self._scanner_clock_channel == self._clock_channel:
+            self.log.warning('Clock daq task is free: {}'.format(self._clock_daq_task is None))
+            self.log.warning('Scanner clock daq task is free: {}'.format(self._scanner_clock_daq_task is None))
             if not ((self._clock_daq_task is None) and (self._scanner_clock_daq_task is None)):
                 self.log.error(
                     'Only one clock channel is available!\n'

@@ -388,6 +388,8 @@ class CounterLogic(GenericLogic):
         """
         if self._interrupted:
             self._interrupted = False
+            while not self._counting_device._scanner_clock_daq_task is None:
+                time.sleep(0.01)
             self.startCount()
 
     def interruptCount(self):
