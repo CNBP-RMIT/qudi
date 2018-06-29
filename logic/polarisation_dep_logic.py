@@ -19,6 +19,7 @@ Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
 """
 
+from core.module import Connector
 from logic.generic_logic import GenericLogic
 from qtpy import QtCore
 
@@ -32,27 +33,23 @@ class PolarisationDepLogic(GenericLogic):
     _modtype = 'logic'
 
     ## declare connectors
-    _in = { 'counterlogic': 'CounterLogic',
-            'savelogic': 'SaveLogic',
-            'motor':'MotorInterface'
-            }
-    _out = {'polarisationdeplogic': 'PolarisationDepLogic'}
+    counterlogic = Connector(interface='CounterLogic')
+    savelogic = Connector(interface='SaveLogic')
+    motor = Connector(interface='MotorInterface')
 
     signal_rotation_finished = QtCore.Signal()
     signal_start_rotation = QtCore.Signal()
 
-    def on_activate(self,e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-          @param object e: Fysom state change event
         """
 
-        self._counter_logic = self.get_in_connector('counterlogic')
+        self._counter_logic = self.get_connector('counterlogic')
 #        print("Counting device is", self._counting_device)
 
-        self._save_logic = self.get_in_connector('savelogic')
+        self._save_logic = self.get_connector('savelogic')
 
-        self._hwpmotor = self.get_in_connector('motor')
+        self._hwpmotor = self.get_connector('motor')
 
         # Initialise measurement parameters
         self.scan_length = 360
@@ -63,10 +60,8 @@ class PolarisationDepLogic(GenericLogic):
         self.signal_start_rotation.connect(self.rotate_polarisation, QtCore.Qt.QueuedConnection)
 
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-          @param object e: Fysom state change event
         """
         return
 

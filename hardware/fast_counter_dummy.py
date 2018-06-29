@@ -23,17 +23,10 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import time
 import os
 import numpy as np
-from qtpy import QtWidgets
 
-from core.base import Base
+from core.module import Base, ConfigOption
 from interface.fast_counter_interface import FastCounterInterface
 
-
-class InterfaceImplementationError(Exception):
-    def __init__(self, value):
-        self.value = value
-    def __str__(self):
-        return repr(self.value)
 
 class FastCounterDummy(Base, FastCounterInterface):
     """This is the Interface class to define the controls for the simple
@@ -41,55 +34,36 @@ class FastCounterDummy(Base, FastCounterInterface):
     """
     _modclass = 'fastcounterinterface'
     _modtype = 'hardware'
-    # connectors
-    _out = {'fastcounter': 'FastCounterInterface'}
+
+    # config option
+    _gated = ConfigOption('gated', False, missing='warn')
+    trace_path = ConfigOption('load_trace', None)
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
-        self.log.info('The following configuration was found.')
+        self.log.debug('The following configuration was found.')
 
         # checking for the right configuration
         for key in config.keys():
             self.log.info('{0}: {1}'.format(key,config[key]))
 
-        if 'gated' in config.keys():
-            self._gated = config['gated']
-        else:
-            self._gated = False
-            self.log.warning('No parameter "gated" was specified in the '
-                        'config. The default configuration gated={0} will be '
-                        'taken instead.'.format(self._gated))
+        if self.trace_path is None:
+            self.trace_path = os.path.join(
+                self.get_main_dir(),
+                'tools',
+                'FastComTec_demo_timetrace.asc')
 
-        if 'choose_trace' in config.keys():
-            self._choose_trace = config['choose_trace']
-        else:
-            self._choose_trace = False
-            self.log.warning('No parameter "choose_trace" was specified in '
-                    'the config. The default configuration choose_trace={0} '
-                    'will be taken instead.'.format(self._choose_trace))
-
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Fysom.event object from Fysom class.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
         self.statusvar = 0
         self._binwidth = 1
         self._gate_length_bins = 8192
         return
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-        @param object e: Fysom.event object from Fysom class. A more detailed
-                         explanation can be found in the method activation.
         """
         self.statusvar = -1
         return
@@ -174,30 +148,10 @@ class FastCounterDummy(Base, FastCounterInterface):
     def start_measure(self):
         time.sleep(1)
         self.statusvar = 2
-
-        if self._choose_trace:
-            defaultconfigpath = os.path.join(self.get_main_dir())
-
-            # choose the filename via the Qt Dialog window:
-            filename = QtWidgets.QFileDialog.getOpenFileName(None,
-                                                         'Load Pulsed File',
-                                                         defaultconfigpath)#,
-                                                         # 'Configuration files (*.cfg)')
-
-            if filename == '':
-                self._count_data = np.loadtxt(
-                    os.path.join(self.get_main_dir(), 'tools',
-                                 'FastComTec_demo_timetrace.asc'))
-            else:
-                # the file must have a standard structure (laser pulses in one
-                # or several columns) so that the load routine can open them:
-                self._count_data = np.loadtxt(filename).transpose()
-
-        else:
-            self._count_data = np.loadtxt(
-                os.path.join(self.get_main_dir(), 'tools',
-                             'FastComTec_demo_timetrace.asc'))
-
+        try:
+            self._count_data = np.loadtxt(self.trace_path)
+        except:
+            return -1
         return 0
 
     def pause_measure(self):

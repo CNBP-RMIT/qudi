@@ -16,37 +16,33 @@ along with Qudi. If not, see <http://www.gnu.org/licenses/>.
 
 Copyright (c) the Qudi Developers. See the COPYRIGHT.txt file at the
 top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi/>
-Copyright (C) 2016 Florian Frank alexander.stark@uni-ulm.de
 """
 
+import copy
+from time import sleep
+
+from core.module import Connector
 from logic.generic_logic import GenericLogic
 from interface.confocal_scanner_interface import ConfocalScannerInterface
-import copy
 
 
 class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
+    """ This interfuse produces a Z correction corresponding to a tilted surface.
+    """
+
 
     _modclass = 'ScannerTiltInterfuse'
     _modtype = 'interfuse'
 
-    _in = {'confocalscanner1': 'ConfocalScannerInterface'}
-    _out = {'confocalscanner1': 'ConfocalScannerInterface'}
+    confocalscanner1 = Connector(interface='ConfocalScannerInterface')
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event,
-                         the state before the event happened and the destination
-                         of the state which should be reached after the event
-                         had happened.
         """
-        self._scanning_device = self.get_in_connector('confocalscanner1')
+        self._scanning_device = self.get_connector('confocalscanner1')
 
         self.tilt_variable_ax = 1
         self.tilt_variable_ay = 1
@@ -54,11 +50,9 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
         self.tilt_reference_x = 0
         self.tilt_reference_y = 0
 
-    def on_deactivate(self,e):
-        """ Deinitialisation performed during deactivation of the module.
 
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
+    def on_deactivate(self):
+        """ Deinitialisation performed during deactivation of the module.
         """
         pass
 
@@ -119,6 +113,14 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
 
         @return int: error code (0:OK, -1:error)
         """
+        # Before setting up the scanner, check if a counter is on and if it can be interrupted
+        if self._scanning_device.sharing_status == 'interruptable':
+            self._scanning_device.sigOverstepCounter.emit()
+            while not self._scanning_device._clock_daq_task is None:
+                sleep(0.01)
+            self._scanning_device.sharing_status = 'interrupted'
+            self.log.warning('Existing counter clock interrupted.')
+
         return self._scanning_device.set_up_scanner_clock(clock_frequency, clock_channel)
 
     def set_up_scanner(self, counter_channel=None, photon_source=None,
@@ -186,17 +188,17 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
         """
         return self._scanning_device.set_up_line(length)
 
-    def scan_line(self, line_path=None):
+    def scan_line(self, line_path=None, pixel_clock=False):
         """ Scans a line and returns the counts on that line.
 
-        @param float[][4] line_path: array of 4-part tuples defining the
-                                     positions pixels
+        @param float[][4] line_path: array of 4-part tuples defining the positions pixels
+        @param bool pixel_clock: whether we need to output a pixel clock for this line
 
         @return float[]: the photon counts per second
         """
         if self.tiltcorrection:
             line_path[:][2] += self._calc_dz(line_path[:][0], line_path[:][1])
-        return self._scanning_device.scan_line(line_path)
+        return self._scanning_device.scan_line(line_path, pixel_clock)
 
     def close_scanner(self):
         """ Closes the scanner and cleans up afterwards.
@@ -210,6 +212,13 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
 
         @return int: error code (0:OK, -1:error)
         """
+        # If a counter was interrupted, restart it
+        if self._scanning_device.sharing_status == 'interrupted':
+            self._scanning_device.sigReleaseCounter.emit()
+            self._scanning_device.sharing_status = 'interruptable'
+            self.log.warning(
+                'Previously interrupted counter clock will restart.')
+
         return self._scanning_device.close_scanner_clock()
 
     def _calc_dz(self, x, y):

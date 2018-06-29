@@ -61,7 +61,7 @@ from zmq.error import ZMQError
 from .compilerop import CachingCompiler, check_linecache_ipython
 from .display_trap import DisplayTrap
 from .builtin_trap import BuiltinTrap
-from .redirect import redirect_stdout, redirect_stderr
+from .redirect import RedirectedStdOut, RedirectedStdErr
 from .stream import QZMQStream
 from .helpers import *
 from .events import EventManager, available_events
@@ -76,12 +76,13 @@ class QZMQHeartbeat(QtCore.QObject):
         self.stream = stream
         self.stream.sigMsgRecvd.connect(self.beat)
 
+    @QtCore.Slot(bytes)
     def beat(self, msg):
         """ Send a message back.
 
           @param msg: message to be sent back
         """
-        logging.debug( "HB: %s" % msg)
+        logging.debug( "HB: {}".format(msg))
         if len(msg) > 0:
             retmsg = msg[0]
         try:
@@ -89,6 +90,7 @@ class QZMQHeartbeat(QtCore.QObject):
         except zmq.ZMQError as e:
             if e.errno != errno.EINTR:
                 raise
+
 
 class QZMQKernel(QtCore.QObject):
     """ A Qt-based embeddable kernel for Jupyter. """
@@ -141,7 +143,7 @@ class QZMQKernel(QtCore.QObject):
         self.auth = hmac.HMAC(
             self.secure_key,
             digestmod=self.signature_schemes[self.config["signature_scheme"]])
-        logging.info('New Kernel {}'.format(self.engine_id))
+        logging.debug('New Kernel {}'.format(self.engine_id))
 
     @QtCore.Slot()
     def connect_kernel(self):
@@ -155,32 +157,31 @@ class QZMQKernel(QtCore.QObject):
         self.iopub_socket = self.ctx.socket(zmq.PUB)
         self.config["iopub_port"] = self.bind(self.iopub_socket, self.connection, self.config["iopub_port"])
         self.iopub_stream = QZMQStream(self.iopub_socket)
-        self.iopub_stream.sigMsgRecvd.connect(self.iopub_handler)
+        self.iopub_stream.sigMsgRecvd.connect(self.iopub_handler, QtCore.Qt.QueuedConnection)
         # Control:
         self.control_socket = self.ctx.socket(zmq.ROUTER)
         self.config["control_port"] = self.bind(self.control_socket, self.connection, self.config["control_port"])
         self.control_stream = QZMQStream(self.control_socket)
-        self.control_stream.sigMsgRecvd.connect(self.control_handler)
+        self.control_stream.sigMsgRecvd.connect(self.control_handler, QtCore.Qt.QueuedConnection)
         # Stdin:
         self.stdin_socket = self.ctx.socket(zmq.ROUTER)
         self.config["stdin_port"] = self.bind(self.stdin_socket, self.connection, self.config["stdin_port"])
         self.stdin_stream = QZMQStream(self.stdin_socket)
-        self.stdin_stream.sigMsgRecvd.connect(self.stdin_handler)
+        self.stdin_stream.sigMsgRecvd.connect(self.stdin_handler, QtCore.Qt.QueuedConnection)
         # Shell:
         self.shell_socket = self.ctx.socket(zmq.ROUTER)
         self.config["shell_port"] = self.bind(self.shell_socket, self.connection, self.config["shell_port"])
         self.shell_stream = QZMQStream(self.shell_socket)
-        self.shell_stream.sigMsgRecvd.connect(self.shell_handler)
+        self.shell_stream.sigMsgRecvd.connect(self.shell_handler, QtCore.Qt.QueuedConnection)
 
-        logging.info( "Config: %s" % json.dumps(self.config))
-        logging.info( "Starting loops...")
+        logging.debug("Config: %s" % json.dumps(self.config))
 
         self.heartbeat_handler = QZMQHeartbeat(self.heartbeat_stream)
         self.heartbeat_handler.moveToThread(self.hb_thread)
         self.hb_thread.start()
 
         self.init_exec_env()
-        logging.info( "Ready! Listening...")
+        logging.info('{} ready! Listening...'.format(self.engine_id))
 
     def init_exec_env(self):
         self.execution_count = 1
@@ -196,11 +197,13 @@ class QZMQKernel(QtCore.QObject):
 
     @QtCore.Slot()
     def shutdown(self):
+        logging.info('{} shutting down.'.format(self.engine_id))
         self.iopub_stream.close()
         self.stdin_stream.close()
         self.shell_stream.close()
         self.control_stream.close()
         self.heartbeat_stream.close()
+
         self.iopub_socket.close()
         self.stdin_socket.close()
         self.shell_socket.close()
@@ -318,8 +321,8 @@ class QZMQKernel(QtCore.QObject):
         self.displaydata = list()
         stream_stdout = StringIO()
         stream_stderr = StringIO()
-        with redirect_stderr(stream_stderr):
-            with redirect_stdout(stream_stdout):
+        with RedirectedStdErr(stream_stderr):
+            with RedirectedStdOut(stream_stdout):
                 # actual execution
                 try:
                     res = self.run_cell(msg['content']['code'])

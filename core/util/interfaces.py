@@ -23,12 +23,37 @@ top-level directory of this distribution and at
 
 import abc
 from qtpy.QtCore import QObject
+from core.module import ModuleMeta
 
 QObjectMeta = type(QObject)
 
-class InterfaceMetaclass(QObjectMeta, abc.ABCMeta):
+class InterfaceMetaclass(ModuleMeta, abc.ABCMeta):
     """
     Metaclass for interfaces.
     """
     pass
 
+
+class TaskMetaclass(QObjectMeta, abc.ABCMeta):
+    """
+    Metaclass for interfaces.
+    """
+    pass
+
+
+class ScalarConstraint:
+    """
+    Constraint definition for a scalar variable hardware parameter.
+    """
+    def __init__(self, min=0.0, max=0.0, step=0.0, default=0.0, unit=''):
+        # allowed minimum value for parameter
+        self.min = min
+        # allowed maximum value for parameter
+        self.max = max
+        # allowed step size for parameter value changes (for spinboxes etc.)
+        self.step = step
+        # the default value for the parameter
+        self.default = default
+        # the unit of the parameter value(optional)
+        self.unit = unit
+        return

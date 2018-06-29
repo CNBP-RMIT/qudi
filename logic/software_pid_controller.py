@@ -26,20 +26,28 @@ import numpy as np
 
 from logic.generic_logic import GenericLogic
 from interface.pid_controller_interface import PIDControllerInterface
-
+from core.module import Connector, ConfigOption, StatusVar
 
 class SoftPIDController(GenericLogic, PIDControllerInterface):
     """
-    Controll a process via software PID.
+    Control a process via software PID.
     """
     _modclass = 'pidlogic'
     _modtype = 'logic'
+
     ## declare connectors
-    _in = {
-        'process': 'ProcessInterface',
-        'control': 'ProcessControlInterface',
-        }
-    _out = {'controller': 'SoftPIDController'}
+    process = Connector(interface='ProcessInterface')
+    control = Connector(interface='ProcessControlInterface')
+
+    # config opt
+    timestep = ConfigOption(default=100)
+
+    # status vars
+    kP = StatusVar(default=1)
+    kI = StatusVar(default=1)
+    kD = StatusVar(default=1)
+    setpoint = StatusVar(default=273.15)
+    manualvalue = StatusVar(default=0)
 
     sigNewValue = QtCore.Signal(float)
 
@@ -56,47 +64,14 @@ class SoftPIDController(GenericLogic, PIDControllerInterface):
         self.NumberOfSecondsLog = 100
         self.threadlock = Mutex()
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
         """
-        self._process = self.get_in_connector('process')
-        self._control = self.get_in_connector('control')
+        self._process = self.get_connector('process')
+        self._control = self.get_connector('control')
 
         self.previousdelta = 0
         self.cv = self._control.getControlValue()
-
-        config = self.getConfiguration()
-        if 'timestep' in config:
-            self.timestep = config['timestep']
-        else:
-            self.timestep = 100
-            self.log.warn('No time step configured, using 100ms')
-
-        # load parameters stored in app state store
-        if 'kP' in self._statusVariables:
-            self.kP = self._statusVariables['kP']
-        else:
-            self.kP = 1
-        if 'kI' in self._statusVariables:
-            self.kI = self._statusVariables['kI']
-        else:
-            self.kI = 1
-        if 'kD' in self._statusVariables:
-            self.kD = self._statusVariables['kD']
-        else:
-            self.kD = 1
-        if 'setpoint' in self._statusVariables:
-            self.setpoint = self._statusVariables['setpoint']
-        else:
-            self.setpoint = 273.15
-        #if 'enable' in self._statusVariables:
-        #    self.enable = self._statusVariables['enable']
-        #else:
-        #    self.enable = False
-        if 'manualvalue' in self._statusVariables:
-            self.manualvalue = self._statusVariables['manualvalue']
-        else:
-            self.manualvalue = 0
 
         self.timer = QtCore.QTimer()
         self.timer.setSingleShot(True)
@@ -113,15 +88,10 @@ class SoftPIDController(GenericLogic, PIDControllerInterface):
 
         self.timer.start(self.timestep)
 
-    def on_deactivate(self, e):
-        """ Perform required deactivation. """
-
-        # save parameters stored in app state store
-        self._statusVariables['kP'] = self.kP
-        self._statusVariables['kI'] = self.kI
-        self._statusVariables['kD'] = self.kD
-        self._statusVariables['setpoint'] = self.setpoint
-        self._statusVariables['enable'] = self.enable
+    def on_deactivate(self):
+        """ Perform required deactivation.
+        """
+        pass
 
     def _calcNextStep(self):
         """ This function implements the Takahashi Type C PID
@@ -176,52 +146,103 @@ class SoftPIDController(GenericLogic, PIDControllerInterface):
         self.timer.start(self.timestep)
 
     def startLoop(self):
+        """ Start the control loop. """
         self.countdown = 2
 
     def stopLoop(self):
+        """ Stop the control loop. """
         self.countdown = -1
         self.enable = False
 
     def getSavingState(self):
+        """ Find out if we are keeping data for saving later.
+
+            @return bool: whether module is saving process and control data
+        """
         return self.savingState
 
     def startSaving(self):
+        """ Start saving process and control data.
+
+            Does not do anything right now.
+        """
         pass
 
     def saveData(self):
+        """ Write process and control data to file.
+
+            Does not do anything right now.
+        """
         pass
 
-    def setSetpoint(self, newSetpoint):
-        self.setpoint = newSetpoint
-
     def get_kp(self):
+        """ Return the proportional constant.
+
+            @return float: proportional constant of PID controller
+        """
         return self.kP
 
     def set_kp(self, kp):
+        """ Set the proportional constant of the PID controller.
+
+            @prarm float kp: proportional constant of PID controller
+        """
         self.kP = kp
 
     def get_ki(self):
+        """ Get the integration constant of the PID controller
+
+            @return float: integration constant of the PID controller
+        """
         return self.kI
 
     def set_ki(self, ki):
+        """ Set the integration constant of the PID controller.
+
+            @param float ki: integration constant of the PID controller
+        """
         self.kI = ki
 
     def get_kd(self):
+        """ Get the derivative constant of the PID controller
+
+            @return float: the derivative constant of the PID controller
+        """
         return self.kD
 
     def set_kd(self, kd):
+        """ Set the derivative constant of the PID controller
+
+            @param float kd: the derivative constant of the PID controller
+        """
         self.kD = kd
 
     def get_setpoint(self):
+        """ Get the current setpoint of the PID controller.
+
+            @return float: current set point of the PID controller
+        """
         return self.setpoint
 
     def set_setpoint(self, setpoint):
+        """ Set the current setpoint of the PID controller.
+
+            @param float setpoint: new set point of the PID controller
+        """
         self.setpoint = setpoint
 
     def get_manual_value(self):
+        """ Return the control value for manual mode.
+
+            @return float: control value for manual mode
+        """
         return self.manualvalue
 
     def set_manual_value(self, manualvalue):
+        """ Set the control value for manual mode.
+
+            @param float manualvalue: control value for manual mode of controller
+        """
         self.manualvalue = manualvalue
         limits = self._control.getControlLimits()
         if (self.manualvalue > limits[1]):
@@ -230,27 +251,60 @@ class SoftPIDController(GenericLogic, PIDControllerInterface):
             self.manualvalue = limits[0]
 
     def get_enabled(self):
+        """ See if the PID controller is controlling a process.
+
+            @return bool: whether the PID controller is preparing to or conreolling a process
+        """
         return self.enable or self.countdown >= 0
 
     def set_enabled(self, enabled):
+        """ Set the state of the PID controller.
+
+            @param bool enabled: desired state of PID controller
+        """
         if enabled and not self.enable and self.countdown == -1:
             self.startLoop()
         if not enabled and self.enable:
             self.stopLoop()
 
     def get_control_limits(self):
+        """ Get the minimum and maximum value of the control actuator.
+
+            @return list(float): (minimum, maximum) values of the control actuator
+        """
         return self._control.getControlLimits()
 
     def set_control_limits(self, limits):
+        """ Set the minimum and maximum value of the control actuator.
+
+            @param list(float) limits: (minimum, maximum) values of the control actuator
+
+            This function does nothing, control limits are handled by the control module
+        """
         pass
 
     def get_control_value(self):
+        """ Get current control output value.
+
+            @return float: control output value
+        """
         return self.cv
 
     def get_process_value(self):
+        """ Get current process input value.
+
+            @return float: current process input value
+        """
         return self.pv
 
     def get_extra(self):
+        """ Extra information about the controller state.
+
+            @return dict: extra informatin about internal controller state
+
+            Do not depend on the output of this function, not every field
+            exists for every PID controller.
+        """
         return {
             'P': self.P,
             'I': self.I,

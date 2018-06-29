@@ -21,7 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 import visa
 import time
-from core.base import Base
+from core.module import Base, ConfigOption
 from core.util.mutex import Mutex
 from interface.switch_interface import SwitchInterface
 
@@ -31,19 +31,19 @@ class HBridge(Base, SwitchInterface):
     """
     _modclass = 'switchinterface'
     _modtype = 'hardware'
-    _out = {'switch': 'SwitchInterface'}
+
+    serial_interface = ConfigOption('interface', 'ASRL1::INSTR', missing='warn')
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.lock = Mutex()
 
-    def on_activate(self, e):
-        config = self.getConfiguration()
-        if not 'interface' in config:
-            raise KeyError('{0} definitely needs an "interface" configuration value.'.format(self.__class__.__name__))
+    def on_activate(self):
+        """ Activate module.
+        """
         self.rm = visa.ResourceManager()
         self.inst = self.rm.open_resource(
-                config['interface'],
+                self.serial_interface,
                 baud_rate=9600,
                 write_termination='\r\n',
                 read_termination='\r\n',
@@ -51,7 +51,9 @@ class HBridge(Base, SwitchInterface):
                 send_end=True
         )
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
+        """ Deactivate module.
+        """
         self.inst.close()
 
     def getNumberOfSwitches(self):

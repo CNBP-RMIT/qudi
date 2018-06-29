@@ -20,10 +20,14 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 from qtpy import QtCore
+from collections import OrderedDict
 import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import time
 
 from logic.generic_logic import GenericLogic
+from core.module import Connector, ConfigOption, StatusVar
 from core.util.mutex import Mutex
 
 
@@ -36,10 +40,22 @@ class OptimizerLogic(GenericLogic):
     _modtype = 'logic'
 
     # declare connectors
-    _in = {'confocalscanner1': 'ConfocalScannerInterface',
-           'fitlogic': 'FitLogic'
-           }
-    _out = {'optimizerlogic': 'OptimizerLogic'}
+    confocalscanner1 = Connector(interface='ConfocalScannerInterface')
+    fitlogic = Connector(interface='FitLogic')
+    savelogic = Connector(interface='SaveLogic')
+
+    # declare status vars
+    _clock_frequency = StatusVar('clock_frequency', 50)
+    return_slowness = StatusVar(default=20)
+    refocus_XY_size = StatusVar('xy_size', 0.6e-6)
+    optimizer_XY_res = StatusVar('xy_resolution', 10)
+    refocus_Z_size = StatusVar('z_size', 2e-6)
+    optimizer_Z_res = StatusVar('z_resolution', 30)
+    hw_settle_time = StatusVar('settle_time', 0.1)
+    optimization_sequence = StatusVar(default=['XY', 'Z'])
+    do_surface_subtraction = StatusVar('surface_subtraction', False)
+    surface_subtr_scan_offset = StatusVar('surface_subtraction_offset', 1e-6)
+    opt_channel = StatusVar('optimization_channel', 0)
 
     # "private" signals to keep track of activities here in the optimizer logic
     _sigScanNextXyLine = QtCore.Signal()
@@ -56,15 +72,11 @@ class OptimizerLogic(GenericLogic):
     sigRefocusFinished = QtCore.Signal(str, list)
     sigClockFrequencyChanged = QtCore.Signal(int)
     sigPositionChanged = QtCore.Signal(float, float, float)
+    signal_optimizer_data_saved = QtCore.Signal()
+    signal_draw_figure_completed = QtCore.Signal()
 
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
-
-        self.log.info('The following configuration was found.')
-
-        # checking for the right configuration
-        for key in config.keys():
-            self.log.info('{0}: {1}'.format(key, config[key]))
 
         # locking for thread safety
         self.threadlock = Mutex()
@@ -75,71 +87,14 @@ class OptimizerLogic(GenericLogic):
         # Keep track of who called the refocus
         self._caller_tag = ''
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param e: error code
 
         @return int: error code (0:OK, -1:error)
         """
-        self._scanning_device = self.get_in_connector('confocalscanner1')
-        self._fit_logic = self.get_in_connector('fitlogic')
-
-        # default values for clock frequency and slowness
-        # slowness: steps during retrace line
-        if 'clock_frequency' in self._statusVariables:
-            self._clock_frequency = self._statusVariables['clock_frequency']
-        else:
-            self._clock_frequency = 50
-        if 'return_slowness' in self._statusVariables:
-            self.return_slowness = self._statusVariables['return_slowness']
-        else:
-            self.return_slowness = 20
-
-        if 'xy_size' in self._statusVariables:
-            self.refocus_XY_size = self._statusVariables['xy_size']
-        else:
-            self.refocus_XY_size = 0.6e-6  # meters
-
-        if 'xy_resolution' in self._statusVariables:
-            self.optimizer_XY_res = self._statusVariables['xy_resolution']
-        else:
-            self.optimizer_XY_res = 10
-
-        if 'z_size' in self._statusVariables:
-            self.refocus_Z_size = self._statusVariables['z_size']
-        else:
-            self.refocus_Z_size = 2e-6  # meters
-
-        if 'z_resolution' in self._statusVariables:
-            self.optimizer_Z_res = self._statusVariables['z_resolution']
-        else:
-            self.optimizer_Z_res = 30
-
-        if 'settle_time' in self._statusVariables:
-            self.hw_settle_time = self._statusVariables['settle_time']
-        else:
-            self.hw_settle_time = 0.1  # seconds
-
-        if 'optimization_sequence' in self._statusVariables:
-            self.optimization_sequence = self._statusVariables['optimization_sequence']
-        else:
-            self.optimization_sequence = ['XY', 'Z']
-
-        if 'surface_subtraction' in self._statusVariables:
-            self.do_surface_subtraction = self._statusVariables['surface_subtraction']
-        else:
-            self.do_surface_subtraction = False
-
-        if 'surface_subtraction_offset' in self._statusVariables:
-            self.surface_subtr_scan_offset = self._statusVariables['surface_subtraction_offset']
-        else:
-            self.surface_subtr_scan_offset = 1  # micron
-
-        if 'optimization_channel' in self._statusVariables:
-            self.opt_channel = self._statusVariables['optimization_channel']
-        else:
-            self.opt_channel = 0
+        self._scanning_device = self.get_connector('confocalscanner1')
+        self._fit_logic = self.get_connector('fitlogic')
+        self._save_logic = self.get_connector('savelogic')
 
         # Reads in the maximal scanning range. The unit of that scan range is micrometer!
         self.x_range = self._scanning_device.get_position_range()[0]
@@ -152,6 +107,9 @@ class OptimizerLogic(GenericLogic):
         self.optim_pos_x = self._initial_pos_x
         self.optim_pos_y = self._initial_pos_y
         self.optim_pos_z = self._initial_pos_z
+        self.optim_sigma_x = 0.
+        self.optim_sigma_y = 0.
+        self.optim_sigma_z = 0.
 
         self._max_offset = 3.
 
@@ -163,7 +121,7 @@ class OptimizerLogic(GenericLogic):
 
         ###########################
         # Fit Params and Settings #
-        model, params = self._fit_logic.make_gausslinearoffset_model()
+        model, params = self._fit_logic.make_gaussianlinearoffset_model()
         self.z_params = params
         self.use_custom_params = {name: False for name, param in params.items()}
 
@@ -184,24 +142,11 @@ class OptimizerLogic(GenericLogic):
         self._initialize_z_refocus_image()
         return 0
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Reverse steps of activation
-
-        @param e: error code
 
         @return int: error code (0:OK, -1:error)
         """
-        self._statusVariables['optimization_channel'] = self.opt_channel
-        self._statusVariables['clock_frequency'] = self._clock_frequency
-        self._statusVariables['return_slowness'] = self.return_slowness
-        self._statusVariables['xy_size'] = self.refocus_XY_size
-        self._statusVariables['xy_resolution'] = self.optimizer_XY_res
-        self._statusVariables['z_size'] = self.refocus_Z_size
-        self._statusVariables['z_resolution'] = self.optimizer_Z_res
-        self._statusVariables['settle_time'] = self.hw_settle_time
-        self._statusVariables['optimization_sequence'] = self.optimization_sequence
-        self._statusVariables['surface_subtraction'] = self.do_surface_subtraction
-        self._statusVariables['surface_subtraction_offset'] = self.surface_subtr_scan_offset
         return 0
 
     def check_optimization_sequence(self):
@@ -237,17 +182,27 @@ class OptimizerLogic(GenericLogic):
         return 0
 
     def set_refocus_XY_size(self, size):
+        """ Set the number of pixels in the refocus image for X and Y directions
+
+            @param int size: XY image size in pixels
+        """
         self.refocus_XY_size = size
         self.sigRefocusXySizeChanged.emit()
 
     def set_refocus_Z_size(self, size):
+        """ Set the number of values for Z refocus
+
+            @param int size: number of values for Z refocus
+        """
         self.refocus_Z_size = size
         self.sigRefocusZSizeChanged.emit()
 
-    def start_refocus(self, initial_pos=None, caller_tag='unknown',tag='logic'):
-        """Starts the optimization scan around initial_pos
+    def start_refocus(self, initial_pos=None, caller_tag='unknown', tag='logic'):
+        """ Starts the optimization scan around initial_pos
 
-        @param initial_pos
+            @param list initial_pos: with the structure [float, float, float]
+            @param str caller_tag:
+            @param str tag:
         """
         # checking if refocus corresponding to crosshair or corresponding to initial_pos
         if isinstance(initial_pos, (np.ndarray,)) and initial_pos.size >= 3:
@@ -269,10 +224,14 @@ class OptimizerLogic(GenericLogic):
         self.optim_pos_x = self._initial_pos_x
         self.optim_pos_y = self._initial_pos_y
         self.optim_pos_z = self._initial_pos_z
+        self.optim_sigma_x = 0.
+        self.optim_sigma_y = 0.
+        self.optim_sigma_z = 0.
 
         self._xy_scan_line_count = 0
         self._optimization_step = 0
         self.check_optimization_sequence()
+
 
         scanner_status = self.start_scanner()
         if scanner_status < 0:
@@ -297,7 +256,7 @@ class OptimizerLogic(GenericLogic):
         x0 = self.optim_pos_x
         y0 = self.optim_pos_y
 
-        # defining position intervals for refocus
+        # defining position intervals for refocushttp://www.spiegel.de/
         xmin = np.clip(x0 - 0.5 * self.refocus_XY_size, self.x_range[0], self.x_range[1])
         xmax = np.clip(x0 + 0.5 * self.refocus_XY_size, self.x_range[0], self.x_range[1])
         ymin = np.clip(y0 - 0.5 * self.refocus_XY_size, self.y_range[0], self.y_range[1])
@@ -437,8 +396,11 @@ class OptimizerLogic(GenericLogic):
         xy_fit_data = self.xy_refocus_image[:, :, 3].ravel()
         axes = np.empty((len(self._X_values) * len(self._Y_values), 2))
         axes = (fit_x.flatten(), fit_y.flatten())
-        result_2D_gaus = self._fit_logic.make_twoDgaussian_fit(xy_axes=axes,
-                                                               data=xy_fit_data)
+        result_2D_gaus = self._fit_logic.make_twoDgaussian_fit(
+            xy_axes=axes,
+            data=xy_fit_data,
+            estimator=self._fit_logic.estimate_twoDgaussian
+        )
         # print(result_2D_gaus.fit_report())
 
         if result_2D_gaus.success is False:
@@ -446,6 +408,8 @@ class OptimizerLogic(GenericLogic):
             print('2D gaussian fit not successfull')
             self.optim_pos_x = self._initial_pos_x
             self.optim_pos_y = self._initial_pos_y
+            self.optim_sigma_x = 0.
+            self.optim_sigma_y = 0.
             # hier abbrechen
         else:
             #                @reviewer: Do we need this. With constraints not one of these cases will be possible....
@@ -454,9 +418,13 @@ class OptimizerLogic(GenericLogic):
                     if result_2D_gaus.best_values['center_y'] >= self.y_range[0] and result_2D_gaus.best_values['center_y'] <= self.y_range[1]:
                         self.optim_pos_x = result_2D_gaus.best_values['center_x']
                         self.optim_pos_y = result_2D_gaus.best_values['center_y']
+                        self.optim_sigma_x = result_2D_gaus.best_values['sigma_x']
+                        self.optim_sigma_y = result_2D_gaus.best_values['sigma_y']
             else:
                 self.optim_pos_x = self._initial_pos_x
                 self.optim_pos_y = self._initial_pos_y
+                self.optim_sigma_x = 0.
+                self.optim_sigma_y = 0.
 
         # emit image updated signal so crosshair can be updated from this fit
         self.sigImageUpdated.emit()
@@ -466,8 +434,6 @@ class OptimizerLogic(GenericLogic):
         """ Do the z axis optimization."""
         # z scaning
         self._scan_z_line()
-
-        self.sigImageUpdated.emit()
 
         # z-fit
         # If subtracting surface, then data can go negative and the gaussian fit offset constraints need to be adjusted
@@ -490,14 +456,18 @@ class OptimizerLogic(GenericLogic):
                     # Todo: It is required that the changed parameters are given as a dictionary or parameter object
                     add_params=None)
             else:
-                result = self._fit_logic.make_gausspeaklinearoffset_fit(
+                result = self._fit_logic.make_gaussianlinearoffset_fit(
                     x_axis=self._zimage_Z_values,
-                    data=self.z_refocus_line[:, self.opt_channel])
+                    data=self.z_refocus_line[:, self.opt_channel],
+                    units='m',
+                    estimator=self._fit_logic.estimate_gaussianlinearoffset_peak
+                    )
         self.z_params = result.params
 
         if result.success is False:
             self.log.error('error in 1D Gaussian Fit.')
             self.optim_pos_z = self._initial_pos_z
+            self.optim_sigma_z = 0.
             # interrupt here?
         else:  # move to new position
             #                @reviewer: Do we need this. With constraints not one of these cases will be possible....
@@ -506,11 +476,13 @@ class OptimizerLogic(GenericLogic):
                 # checks if new pos is within the scanner range
                 if result.best_values['center'] >= self.z_range[0] and result.best_values['center'] <= self.z_range[1]:
                     self.optim_pos_z = result.best_values['center']
-                    gauss, params = self._fit_logic.make_gausslinearoffset_model()
+                    self.optim_sigma_z = result.best_values['sigma']
+                    gauss, params = self._fit_logic.make_gaussianlinearoffset_model()
                     self.z_fit_data = gauss.eval(
                         x=self._fit_zimage_Z_values, params=result.params)
                 else:  # new pos is too far away
                     # checks if new pos is too high
+                    self.optim_sigma_z = 0.
                     if result.best_values['center'] > self._initial_pos_z:
                         if self._initial_pos_z + 0.5 * self.refocus_Z_size <= self.z_range[1]:
                             # moves to higher edge of scan range
@@ -524,6 +496,7 @@ class OptimizerLogic(GenericLogic):
                         else:
                             self.optim_pos_z = self.z_range[0]  # moves to lowest possible value
 
+        self.sigImageUpdated.emit()
         self._sigDoNextOptimizationStep.emit()
 
     def finish_refocus(self):
@@ -673,7 +646,14 @@ class OptimizerLogic(GenericLogic):
             self._sigScanZLine.emit()
 
     def set_position(self, tag, x=None, y=None, z=None, a=None):
+        """ Set focus position.
 
+            @param str tag: sting indicating who caused position change
+            @param float x: x axis position in m
+            @param float y: y axis position in m
+            @param float z: z axis position in m
+            @param float a: a axis position in m
+        """
         if x is not None:
             self._current_x = x
         if y is not None:
@@ -682,3 +662,266 @@ class OptimizerLogic(GenericLogic):
             self._current_z = z
         self.sigPositionChanged.emit(self._current_x, self._current_y, self._current_z)
 
+    def save_optimized_data(self, colorscale_range=None, percentile_range=None, save_raw_data=True):
+        """ Save the current confocal xy data to file.
+
+        Two files are created.  The first is the imagedata, which has a text-matrix of count values
+        corresponding to the pixel matrix of the image.  Only count-values are saved here.
+
+        The second file saves the full raw data with x, y, z, and counts at every pixel.
+
+        A figure is also saved.
+
+        @param: list colorscale_range (optional) The range [min, max] of the display colour scale (for the figure)
+
+        @param: list percentile_range (optional) The percentile range [min, max] of the color scale
+        """
+        if not self._save_logic.save_into_default_directory:
+            filepath, filename = self._save_logic.get_path_from_dialog()
+        else:
+            filepath = self._save_logic.get_path_for_module('Optimizer')
+            filename = None
+
+        # Save the optimizer XY map
+        # Prepare the metadata parameters
+        parameters = OrderedDict()
+
+        parameters['X image min (m)'] = self._X_values[0]
+        parameters['X image max (m)'] = self._X_values[-1]
+        parameters['X image range (m)'] = self._X_values[-1] - self._X_values[0]
+
+        parameters['Y image min'] = self._Y_values[0]
+        parameters['Y image max'] = self._Y_values[-1]
+        parameters['Y image range'] = self._Y_values[-1] - self._Y_values[0]
+
+        parameters['XY resolution (samples per range)'] = self.optimizer_XY_res
+        parameters['XY Image at z position (m)'] = self._Z_values[0]
+
+        parameters['Clock frequency of scanner (Hz)'] = self._clock_frequency
+        parameters['Return Slowness (Steps during retrace line)'] = self.return_slowness
+
+        # Prepare a figure to be saved
+        image_extent = [self._X_values[0],
+                        self._X_values[-1],
+                        self._Y_values[0],
+                        self._Y_values[-1]]
+        axes = ['X', 'Y']
+        crosshair_pos = [self.optim_pos_x, self.optim_pos_y]
+
+        figs = {ch: self.draw_figure(data=self.xy_refocus_image[:, :, 3 + n],
+                                     image_extent=image_extent,
+                                     scan_axis=axes,
+                                     cbar_range=colorscale_range,
+                                     percentile_range=percentile_range,
+                                     crosshair_pos=crosshair_pos)
+                for n, ch in enumerate(self.get_scanner_count_channels())}
+
+        # Save the image data and figure
+        for n, ch in enumerate(self.get_scanner_count_channels()):
+            # data for the text-array "image":
+            image_data = OrderedDict()
+            image_data['Optimizer XY scan image data without axis.\n'
+                'The upper left entry represents the signal at the upper left pixel position.\n'
+                'A pixel-line in the image corresponds to a row '
+                'of entries where the Signal is in counts/s:'] = self.xy_refocus_image[:, :, 3 + n]
+
+            filelabel = 'optimizer_xy_scan_{0}'.format(ch.replace('/', ''))
+            if filename is not None:
+                filenameXY = filename[:-4] + '_xy_scan.dat'
+                if len(self.get_scanner_count_channels()) > 1:
+                    filenameCh = filenameXY[:-4] + '_ch{0}.dat'.format(ch.replace('/', ''))
+                else:
+                    filenameCh = filenameXY
+            else:
+                filenameCh = filename
+            self._save_logic.save_data(image_data,
+                                       filepath=filepath,
+                                       filename=filenameCh,
+                                       parameters=parameters,
+                                       filelabel=filelabel,
+                                       fmt='%.6e',
+                                       delimiter='\t',
+                                       plotfig=figs[ch])
+
+            # Save the optimizer Z line
+            # Prepare the metadata parameters
+            parametersZ = OrderedDict()
+
+            parametersZ['Z image min (m)'] = self._zimage_Z_values[0]
+            parametersZ['Z image max (m)'] = self._zimage_Z_values[-1]
+            parametersZ['Z image range (m)'] = \
+                self._zimage_Z_values[-1] - self._zimage_Z_values[0]
+
+            parametersZ[
+                'Z resolution (samples per range)'] = self.optimizer_Z_res
+            parametersZ['Z image at x position (m)'] = self.optim_pos_x
+            parametersZ['Z image at y position (m)'] = self.optim_pos_y
+
+            parametersZ[
+                'Clock frequency of scanner (Hz)'] = self._clock_frequency
+            parametersZ[
+                'Return Slowness (Steps during retrace line)'] = self.return_slowness
+
+            # Save the plot data, all channels in the same file
+            # Beacuse of that, it can be done only for the first channel iteration
+            if n == 0:
+                image_dataZ = OrderedDict()
+                image_dataZ['z position (m)'] = self._zimage_Z_values
+                for n, ch in enumerate(self.get_scanner_count_channels()):
+                    # data for the text-array "image":
+                    image_dataZ['Signal{0} (counts/s)'.format(ch.replace('/', ''))] \
+                        = self.z_refocus_line[:, n]
+
+                filelabelZ = 'optimizer_z_scan'
+                if filename is not None:
+                    filenameCh = filename[:-4] + '_z_scan.dat'
+                else:
+                    filenameCh = filename
+                self._save_logic.save_data(image_dataZ,
+                                           filepath=filepath,
+                                           filename=filenameCh,
+                                           parameters=parametersZ,
+                                           filelabel=filelabelZ,
+                                           fmt='%.6e',
+                                           delimiter='\t')
+
+        self.log.debug('Optimizer Image saved.')
+        self.signal_optimizer_data_saved.emit() # Who does even catch this for the confocal scan?
+        return
+
+    def draw_figure(self, data, image_extent, scan_axis=None, cbar_range=None, percentile_range=None,  crosshair_pos=None):
+        """ Create a 2-D color map figure of the scan image.
+
+        @param: array data: The NxM array of count values from a scan with NxM pixels.
+
+        @param: list image_extent: The scan range in the form [hor_min, hor_max, ver_min, ver_max]
+
+        @param: list axes: Names of the horizontal and vertical axes in the image
+
+        @param: list cbar_range: (optional) [color_scale_min, color_scale_max].  If not supplied then a default of
+                                 data_min to data_max will be used.
+
+        @param: list percentile_range: (optional) Percentile range of the chosen cbar_range.
+
+        @param: list crosshair_pos: (optional) crosshair position as [hor, vert] in the chosen image axes.
+
+        @return: fig fig: a matplotlib figure object to be saved to file.
+        """
+        if scan_axis is None:
+            scan_axis = ['X', 'Y']
+
+        # If no colorbar range was given, take full range of data
+        if cbar_range is None:
+            cbar_range = [np.min(data), np.max(data)]
+
+        # Scale color values using SI prefix
+        prefix = ['', 'k', 'M', 'G']
+        prefix_count = 0
+        image_data = data
+        draw_cb_range = np.array(cbar_range)
+        image_dimension = image_extent.copy()
+
+        while draw_cb_range[1] > 1000:
+            image_data = image_data/1000
+            draw_cb_range = draw_cb_range/1000
+            prefix_count = prefix_count + 1
+
+        c_prefix = prefix[prefix_count]
+
+
+        # Scale axes values using SI prefix
+        axes_prefix = ['', 'm', r'$\mathrm{\mu}$', 'n']
+        x_prefix_count = 0
+        y_prefix_count = 0
+
+        while np.abs(image_dimension[1]-image_dimension[0]) < 1:
+            image_dimension[0] = image_dimension[0] * 1000.
+            image_dimension[1] = image_dimension[1] * 1000.
+            x_prefix_count = x_prefix_count + 1
+
+        while np.abs(image_dimension[3] - image_dimension[2]) < 1:
+            image_dimension[2] = image_dimension[2] * 1000.
+            image_dimension[3] = image_dimension[3] * 1000.
+            y_prefix_count = y_prefix_count + 1
+
+        x_prefix = axes_prefix[x_prefix_count]
+        y_prefix = axes_prefix[y_prefix_count]
+
+        # Use qudi style
+        plt.style.use(self._save_logic.mpl_qd_style)
+
+        # Create figure
+        fig, ax = plt.subplots()
+
+        # Create image plot
+        cfimage = ax.imshow(image_data,
+                            cmap=plt.get_cmap('inferno'), # reference the right place in qd
+                            origin="lower",
+                            vmin=draw_cb_range[0],
+                            vmax=draw_cb_range[1],
+                            interpolation='none',
+                            extent=image_dimension
+                            )
+
+        ax.set_aspect(1)
+        ax.set_xlabel(scan_axis[0] + ' position (' + x_prefix + 'm)')
+        ax.set_ylabel(scan_axis[1] + ' position (' + y_prefix + 'm)')
+        ax.spines['bottom'].set_position(('outward', 10))
+        ax.spines['left'].set_position(('outward', 10))
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.get_xaxis().tick_bottom()
+        ax.get_yaxis().tick_left()
+
+        # draw the crosshair position if defined
+        if crosshair_pos is not None:
+            trans_xmark = mpl.transforms.blended_transform_factory(
+                ax.transData,
+                ax.transAxes)
+
+            trans_ymark = mpl.transforms.blended_transform_factory(
+                ax.transAxes,
+                ax.transData)
+
+            ax.annotate('', xy=(crosshair_pos[0]*np.power(1000,x_prefix_count), 0),
+                        xytext=(crosshair_pos[0]*np.power(1000,x_prefix_count), -0.01), xycoords=trans_xmark,
+                        arrowprops=dict(facecolor='#17becf', shrink=0.05),
+                        )
+
+            ax.annotate('', xy=(0, crosshair_pos[1]*np.power(1000,y_prefix_count)),
+                        xytext=(-0.01, crosshair_pos[1]*np.power(1000,y_prefix_count)), xycoords=trans_ymark,
+                        arrowprops=dict(facecolor='#17becf', shrink=0.05),
+                        )
+
+        # Draw the colorbar
+        cbar = plt.colorbar(cfimage, shrink=0.8)#, fraction=0.046, pad=0.08, shrink=0.75)
+        cbar.set_label('Fluorescence (' + c_prefix + 'c/s)')
+
+        # remove ticks from colorbar for cleaner image
+        cbar.ax.tick_params(which=u'both', length=0)
+
+        # If we have percentile information, draw that to the figure
+        if percentile_range is not None:
+            cbar.ax.annotate(str(percentile_range[0]),
+                             xy=(-0.3, 0.0),
+                             xycoords='axes fraction',
+                             horizontalalignment='right',
+                             verticalalignment='center',
+                             rotation=90
+                             )
+            cbar.ax.annotate(str(percentile_range[1]),
+                             xy=(-0.3, 1.0),
+                             xycoords='axes fraction',
+                             horizontalalignment='right',
+                             verticalalignment='center',
+                             rotation=90
+                             )
+            cbar.ax.annotate('(percentile)',
+                             xy=(-0.3, 0.5),
+                             xycoords='axes fraction',
+                             horizontalalignment='right',
+                             verticalalignment='center',
+                             rotation=90
+                             )
+        self.signal_draw_figure_completed.emit() # Who does even catch this for the confocal scan?
+        return fig

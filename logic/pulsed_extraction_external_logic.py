@@ -20,13 +20,14 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 
-from qtpy import QtCore
-from collections import OrderedDict
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
+from collections import OrderedDict
+from core.module import Connector
 from core.util.mutex import Mutex
 from logic.generic_logic import GenericLogic
+from qtpy import QtCore
 
 
 class PulsedExtractionExternalLogic(GenericLogic):
@@ -43,10 +44,9 @@ class PulsedExtractionExternalLogic(GenericLogic):
     _modtype = 'logic'
 
     # declare connectors
-    _in = {'savelogic': 'SaveLogic',
-           'pulseextractionlogic': 'PulseExtractionLogic',
-           'pulseanalysislogic': 'PulseAnalysisLogic'}
-    _out = {'pulsedextractionexternallogic': 'PulsedExtractionExternalLogic'}
+    savelogic = Connector(interface='SaveLogic')
+    pulseextractionlogic = Connector(interface='PulseExtractionLogic')
+    pulseanalysislogic = Connector(interface='PulseAnalysisLogic')
 
     def __init__(self, **kwargs):
         """ Create QdplotLogic object with connectors.
@@ -58,28 +58,15 @@ class PulsedExtractionExternalLogic(GenericLogic):
         # locking for thread safety
         self.threadlock = Mutex()
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Initialisation performed during activation of the module.
-
-        @param object e: Event class object from Fysom.
-                         An object created by the state machine module Fysom,
-                         which is connected to a specific event (have a look in
-                         the Base Class). This object contains the passed event
-                         the state before the event happens and the destination
-                         of the state which should be reached after the event
-                         has happen.
         """
+        self._save_logic = self.get_connector('savelogic')
+        self._pe_logic = self.get_connector('pulseextractionlogic')
+        self._pa_logic = self.get_connector('pulseanalysislogic')
 
-
-        self._save_logic = self.get_in_connector('savelogic')
-        self._pe_logic = self.get_in_connector('pulseextractionlogic')
-        self._pa_logic = self.get_in_connector('pulseanalysislogic')
-
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
-
-        @param object e: Event class object from Fysom. A more detailed
-                         explanation can be found in method activation.
         """
         return
 
@@ -91,20 +78,23 @@ class PulsedExtractionExternalLogic(GenericLogic):
         if method =='Niko':
             number_laser=param_dict['number_laser']
             conv=param_dict['conv']
-            laser_y = self._pe_logic.ungated_extraction(self.data,conv,number_laser)
+            return_dict = self._pe_logic.ungated_extraction(self.data,conv,number_laser)
+            laser_y = return_dict['laser_arr_y']
         elif method == 'treshold':
             count_treshold=param_dict['count_treshold']
             min_len_laser=param_dict['min_len_laser']
             exception=param_dict['exception']
-            laser_y = self._pe_logic.extract_laser_pulses(self.data,count_treshold,min_len_laser,exception)
+            return_dict = self._pe_logic.extract_laser_pulses(self.data,count_treshold,min_len_laser,exception)
+            laser_y = return_dict['laser_arr_y']
         elif method == 'old':
             number_laser=param_dict['number_laser']
             laser_length=param_dict['laser_length']
             initial_offset=param_dict['initial_offset']
             initial_length=param_dict['initial_length']
             increment_length=param_dict['increment_length']
-            laser_y = self._pe_logic.excise_laser_pulses(self.data,number_laser,laser_length,
-                                                         initial_offset,initial_length,increment_length)
+            return_dict = self._pe_logic.excise_laser_pulses(self.data,number_laser,laser_length,
+                                                             initial_offset,initial_length,increment_length)
+            laser_y = return_dict['laser_arr_y']
         else:
             self.log.warning('Not yet implemented')
         if ignore_first:
@@ -152,14 +142,8 @@ class PulsedExtractionExternalLogic(GenericLogic):
         filelabel='result'
         filepath = self._save_logic.get_path_for_module(module_name='Counter')
 
-        self._save_logic.save_data(data,
-                                       filepath,
-                                       parameters=parameters,
-                                       filelabel=filelabel,
-                                       as_text=True,
-                                       plotfig=fig
-                                       )
-        plt.close(fig)
+        self._save_logic.save_data(data, filepath=filepath, parameters=parameters,
+                                   filelabel=filelabel, plotfig=fig, delimiter='\t')
 
         return self._data_to_save, parameters
 

@@ -21,7 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 import visa
 import time
-from core.base import Base
+from core.module import Base, ConfigOption
 from core.util.mutex import Mutex
 from interface.switch_interface import SwitchInterface
 
@@ -32,7 +32,8 @@ class FlipMirror(Base, SwitchInterface):
     """
     _modclass = 'switchinterface'
     _modtype = 'hardware'
-    _out = {'switch':'SwitchInterface'}
+
+    serial_interface = ConfigOption('interface', 'ASRL1::INSTR', missing='warn')
 
     def __init__(self, config, **kwargs):
         """ Creae flip mirror control module
@@ -44,20 +45,13 @@ class FlipMirror(Base, SwitchInterface):
         """
         super().__init__(config=config, **kwargs)
         self.lock = Mutex()
-        print(config)
-        print(self._configuration)
 
-    def on_activate(self, e):
+    def on_activate(self):
         """ Prepare module, connect to hardware.
-
-          @param e: Fysom stae change notification.
         """
-        config = self.getConfiguration()
-        if not 'interface' in config:
-            raise KeyError('{0} definitely needs an "interface" configuration value.'.format(self.__class__.__name__))
         self.rm = visa.ResourceManager()
         self.inst = self.rm.open_resource(
-                config['interface'],
+                self.serial_interface,
                 baud_rate=115200,
                 write_termination='\r\n',
                 read_termination='\r\n',
@@ -65,10 +59,8 @@ class FlipMirror(Base, SwitchInterface):
                 send_end=True
         )
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
         """ Disconnect from hardware on deactivation.
-
-          @param e: Fysom stae change notification.
         """
         self.inst.close()
         self.rm.close()

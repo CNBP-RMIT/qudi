@@ -21,52 +21,38 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 
 from influxdb import InfluxDBClient
 
-from core.base import Base
+from core.module import Base, ConfigOption
 from interface.process_interface import ProcessInterface
 
 
 class InfluxDataClient(Base, ProcessInterface):
+    """ Retrieve live data from InfluxDB as if the measurement device was connected directly.
+    """
+
     _modclass = 'InfluxDataClient'
     _modtype = 'hardware'
 
-    ## declare connectors
-    _out = {'data': 'ProcessInterface'}
+    user = ConfigOption('user', missing='error')
+    pw = ConfigOption('password', missing='error')
+    dbname = ConfigOption('dbname', missing='error')
+    host = ConfigOption('host', missing='error')
+    port = ConfigOption('port', 8086)
+    series = ConfigOption('dataseries', missing='error')
+    field = ConfigOption('field', missing='error')
+    cr = ConfigOption('criterion', missing='error')
 
-    def on_activate(self, e):
-        config = self.getConfiguration()
-
-        if 'user' in config:
-            self.user = config['user']
-
-        if 'password' in config:
-            self.pw = config['password']
-
-        if 'dbname' in config:
-            self.dbname = config['dbname']
-
-        if 'host' in config:
-            self.host = config['host']
-
-        if 'port' in config:
-            self.port = config['port']
-        else:
-            self.port = 8086
-
-        if 'dataseries' in config:
-            self.series = config['dataseries']
-
-        if 'field' in config:
-            self.field = config['field']
-
-        if 'criterion' in config:
-            self.cr = config['criterion']
-
+    def on_activate(self):
+        """ Activate module.
+        """
         self.connect_db()
 
-    def on_deactivate(self, e):
+    def on_deactivate(self):
+        """ Deactivate module.
+        """
         del self.conn
 
     def connect_db(self):
+        """ Connect to Influx database """
         self.conn = InfluxDBClient(self.host, self.port, self.user, self.pw, self.dbname)
 
     def getProcessValue(self):
@@ -77,6 +63,9 @@ class InfluxDataClient(Base, ProcessInterface):
         return list(res[('{0}'.format(self.series), None)])[0]['last']
 
     def getProcessUnit(self):
-        """ Return the unit that hte value is measured in as a tuple of ('abreviation', 'full unit name') """
+        """ Return the unit that the value is measured in
+
+            @return (str, str): a tuple of ('abreviation', 'full unit name')
+        """
         return '°C', ' degrees Celsius'
 
