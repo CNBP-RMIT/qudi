@@ -59,9 +59,9 @@ class SpectrometerScannerInterfuse(Base, ConfocalScannerInterface):
         """ Initialisation performed during activation of the module.
         """
 
-        self._fit_logic = self.get_connector('fitlogic')
-        self._scanner_hw = self.get_connector('confocalscanner1')
-        self._spectrometer_hw = self.get_connector('spectrometer1')
+        self._fit_logic = self.fitlogic()
+        self._scanner_hw = self.confocalscanner1()
+        self._spectrometer_hw = self.spectrometer1()
 
 
     def on_deactivate(self):
@@ -187,11 +187,11 @@ class SpectrometerScannerInterfuse(Base, ConfocalScannerInterface):
         @return float[]: the photon counts per second
         """
 
-        #if self.getState() == 'locked':
+        #if self.module_state() == 'locked':
         #    self.log.error('A scan_line is already running, close this one first.')
         #    return -1
         #
-        #self.lock()
+        #self.module_state.lock()
 
         if not isinstance( line_path, (frozenset, list, set, tuple, np.ndarray, ) ):
             self.log.error('Given voltage list is no array type.')

@@ -37,12 +37,29 @@ from interface.microwave_interface import TriggerEdge
 class MicrowaveSmiq(Base, MicrowaveInterface):
     """ This is the Interface class to define the controls for the simple
         microwave hardware.
+
+    Example config for copy-paste:
+
+    mw_source_smiq:
+        module.Class: 'microwave.mw_source_smiq.MicrowaveSmiq'
+        gpib_address: 'GPIB0::28::INSTR'
+        gpib_timeout: 20 # in seconds
+        gpib_baud_rate: 460800  # optional
+        frequency_min: 3e6  # optional, in Hz
+        frequency_max: 3e6  # optional, in Hz
+        power_min: -100  # optional, in dBm
+        power_max: 13  # optional, in dBm
     """
 
     _modclass = 'MicrowaveSmiq'
     _modtype = 'hardware'
     _gpib_address = ConfigOption('gpib_address', missing='error')
     _gpib_timeout = ConfigOption('gpib_timeout', 10, missing='warn')
+    _gpib_baud_rate = ConfigOption('gpib_baud_rate', None)
+    _config_freq_min = ConfigOption('frequency_min', None)
+    _config_freq_max = ConfigOption('frequency_max', None)
+    _config_power_min = ConfigOption('power_min', None)
+    _config_power_max = ConfigOption('power_max', None)
 
     # Indicate how fast frequencies within a list or sweep mode can be changed:
     _FREQ_SWITCH_SPEED = 0.003  # Frequency switching speed in s (acc. to specs)
@@ -53,8 +70,13 @@ class MicrowaveSmiq(Base, MicrowaveInterface):
         # trying to load the visa connection to the module
         self.rm = visa.ResourceManager()
         try:
-            self._gpib_connection = self.rm.open_resource(self._gpib_address,
-                                                          timeout=self._gpib_timeout)
+            if self._gpib_baud_rate is None:
+                self._gpib_connection = self.rm.open_resource(self._gpib_address,
+                                                            timeout=self._gpib_timeout)
+            else:
+                self._gpib_connection = self.rm.open_resource(self._gpib_address,
+                                                            timeout=self._gpib_timeout,
+                                                            baud_rate=self._gpib_baud_rate)
         except:
             self.log.error('This is MWSMIQ: could not connect to GPIB address >>{}<<.'
                            ''.format(self._gpib_address))
@@ -100,11 +122,9 @@ class MicrowaveSmiq(Base, MicrowaveInterface):
         limits.max_power = 10
 
         limits.list_minstep = 0.1
-        limits.list_maxstep = 6.4e9
         limits.list_maxentries = 4000
 
         limits.sweep_minstep = 0.1
-        limits.sweep_maxstep = 6.4e9
         limits.sweep_maxentries = 10001
 
         if self.model == 'SMIQ02B':
@@ -119,11 +139,22 @@ class MicrowaveSmiq(Base, MicrowaveInterface):
         elif self.model == 'SMIQ04B':
             limits.max_frequency = 4.4e9
         elif self.model == 'SMIQ06B':
-            pass
+            limits.max_power = 16
         elif self.model == 'SMIQ06ATE':
             pass
         else:
             self.log.warning('Model string unknown, hardware limits may be wrong.')
+
+        # check config options for stricter limitations
+        if self._config_freq_max is not None and float(self._config_freq_max) < limits.max_frequency:
+            limits.max_frequency = float(self._config_freq_max)
+        if self._config_freq_min is not None and float(self._config_freq_min) > limits.min_frequency:
+            limits.min_frequency = float(self._config_freq_min)
+        if self._config_power_max is not None and float(self._config_power_max) < limits.max_power:
+            limits.max_power = float(self._config_power_max)
+        if self._config_power_min is not None and float(self._config_power_min) > limits.min_power:
+            limits.min_power = float(self._config_power_min)
+
         limits.list_maxstep = limits.max_frequency
         limits.sweep_maxstep = limits.max_frequency
         return limits
@@ -415,12 +446,14 @@ class MicrowaveSmiq(Base, MicrowaveInterface):
         self._command_wait(':ABOR:SWE')
         return 0
 
-    def set_ext_trigger(self, pol=TriggerEdge.RISING):
+    def set_ext_trigger(self, pol, timing):
         """ Set the external trigger for this device with proper polarization.
 
         @param TriggerEdge pol: polarisation of the trigger (basically rising edge or falling edge)
+        @param float timing: estimated time between triggers
 
-        @return object: current trigger polarity [TriggerEdge.RISING, TriggerEdge.FALLING]
+        @return object, float: current trigger polarity [TriggerEdge.RISING, TriggerEdge.FALLING],
+            trigger timing
         """
         mode, is_running = self.get_status()
         if is_running:
@@ -439,9 +472,9 @@ class MicrowaveSmiq(Base, MicrowaveInterface):
 
         polarity = self._gpib_connection.query(':TRIG1:SLOP?')
         if 'NEG' in polarity:
-            return TriggerEdge.FALLING
+            return TriggerEdge.FALLING, timing
         else:
-            return TriggerEdge.RISING
+            return TriggerEdge.RISING, timing
 
     def trigger(self):
         """ Trigger the next element in the list or sweep mode programmatically.

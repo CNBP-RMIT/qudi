@@ -27,10 +27,17 @@ from interface.confocal_scanner_interface import ConfocalScannerInterface
 
 
 class ConfocalScannerDummy(Base, ConfocalScannerInterface):
+    """ Dummy confocal scanner. Produces a picture with several gaussian spots.
 
-    """ Dummy confocal scanner.
-        Produces a picture with several gaussian spots.
+    Example config for copy-paste:
+
+    confocal_scanner_dummy:
+        module.Class: 'confocal_scanner_dummy.ConfocalScannerDummy'
+        clock_frequency: 100 # in Hz
+        fitlogic: 'fitlogic' # name of the fitlogic module, see default config
+
     """
+
     _modclass = 'ConfocalScannerDummy'
     _modtype = 'hardware'
 
@@ -55,7 +62,7 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
         """ Initialisation performed during activation of the module.
         """
 
-        self._fit_logic = self.get_connector('fitlogic')
+        self._fit_logic = self.fitlogic()
 
         # put randomly distributed NVs in the scanner, first the x,y scan
         self._points = np.empty([self._num_points, 7])
@@ -196,7 +203,7 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
                     'order.'.format(myrange))
             return -1
 
-        if self.getState() == 'locked':
+        if self.module_state() == 'locked':
             self.log.error('A Scanner is already running, close this one '
                     'first.')
             return -1
@@ -265,7 +272,7 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
         @return int: error code (0:OK, -1:error)
         """
 
-        if self.getState() == 'locked':
+        if self.module_state() == 'locked':
             self.log.error('A Scanner is already running, close this one first.')
             return -1
 

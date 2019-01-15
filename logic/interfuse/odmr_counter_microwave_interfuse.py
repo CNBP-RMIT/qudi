@@ -49,8 +49,8 @@ class ODMRCounterMicrowaveInterfuse(GenericLogic, ODMRCounterInterface,
 
     def on_activate(self):
         """ Initialisation performed during activation of the module."""
-        self._mw_device = self.get_connector('microwave')
-        self._sc_device = self.get_connector('slowcounter') # slow counter device
+        self._mw_device = self.microwave()
+        self._sc_device = self.slowcounter()  # slow counter device
         pass
 
     def on_deactivate(self):
@@ -113,11 +113,11 @@ class ODMRCounterMicrowaveInterfuse(GenericLogic, ODMRCounterInterface,
         @return float[]: the photon counts per second
         """
 
-        counts = np.zeros(length)
+        counts = np.zeros((len(self.get_odmr_channels()), length))
         # self.trigger()
         for i in range(length):
             self.trigger()
-            counts[i] = self._sc_device.get_counter(samples=1)[0]
+            counts[:, i] = self._sc_device.get_counter(samples=1)[0]
         self.trigger()
         return counts
 
@@ -135,6 +135,12 @@ class ODMRCounterMicrowaveInterfuse(GenericLogic, ODMRCounterInterface,
         """
         return self._sc_device.close_clock()
 
+    def get_odmr_channels(self):
+        """ Return a list of channel names.
+
+        @return list(str): channels recorded during ODMR measurement
+        """
+        return self._sc_device.get_counter_channels()
 
     ### ----------- Microwave interface commands -----------
 
@@ -260,14 +266,15 @@ class ODMRCounterMicrowaveInterfuse(GenericLogic, ODMRCounterInterface,
         """
         return self._mw_device.reset_sweeppos()
 
-    def set_ext_trigger(self, pol=TriggerEdge.RISING):
+    def set_ext_trigger(self, pol, timing):
         """ Set the external trigger for this device with proper polarization.
 
         @param TriggerEdge pol: polarisation of the trigger (basically rising edge or falling edge)
+        @param timing: estimated time between triggers
 
         @return object: current trigger polarity [TriggerEdge.RISING, TriggerEdge.FALLING]
         """
-        return self._mw_device.set_ext_trigger(pol=pol)
+        return self._mw_device.set_ext_trigger(pol=pol, timing=timing)
 
     def get_limits(self):
         """ Return the device-specific limits in a nested dictionary.

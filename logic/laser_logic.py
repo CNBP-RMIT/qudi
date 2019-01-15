@@ -23,7 +23,7 @@ import time
 import numpy as np
 from qtpy import QtCore
 
-from core.module import Connector
+from core.module import Connector, ConfigOption
 from logic.generic_logic import GenericLogic
 from interface.simple_laser_interface import ControlMode, ShutterState, LaserState
 
@@ -34,19 +34,19 @@ class LaserLogic(GenericLogic):
     _modclass = 'laser'
     _modtype = 'logic'
 
+    # waiting time between queries im milliseconds
     laser = Connector(interface='SimpleLaserInterface')
+    queryInterval = ConfigOption('query_interval', 100)
 
     sigUpdate = QtCore.Signal()
 
     def on_activate(self):
         """ Prepare logic module for work.
         """
-        self._laser = self.get_connector('laser')
+        self._laser = self.laser()
         self.stopRequest = False
         self.bufferLength = 100
         self.data = {}
-        # waiting time between queries im milliseconds
-        self.queryInterval = 100
 
         # delay timer for querying laser
         self.queryTimer = QtCore.QTimer()
@@ -86,8 +86,8 @@ class LaserLogic(GenericLogic):
     def check_laser_loop(self):
         """ Get power, current, shutter state and temperatures from laser. """
         if self.stopRequest:
-            if self.can('stop'):
-                self.stop()
+            if self.module_state.can('stop'):
+                self.module_state.stop()
             self.stopRequest = False
             return
         qi = self.queryInterval
@@ -120,7 +120,7 @@ class LaserLogic(GenericLogic):
     @QtCore.Slot()
     def start_query_loop(self):
         """ Start the readout loop. """
-        self.run()
+        self.module_state.run()
         self.queryTimer.start(self.queryInterval)
 
     @QtCore.Slot()
@@ -165,6 +165,7 @@ class LaserLogic(GenericLogic):
             self._laser.on()
         if not state and self.laser_state == LaserState.ON:
             self._laser.off()
+        self.sigUpdate.emit()
 
     @QtCore.Slot(bool)
     def set_shutter_state(self, state):
