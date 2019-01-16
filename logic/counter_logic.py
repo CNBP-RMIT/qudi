@@ -395,7 +395,7 @@ class CounterLogic(GenericLogic):
     def interruptCount(self):
         """ Stop the counter if it was running.
         """
-        if self.getState() == 'locked':
+        if self.module_state() == 'locked':
             self._interrupted = True
         self.stopCount()
 
