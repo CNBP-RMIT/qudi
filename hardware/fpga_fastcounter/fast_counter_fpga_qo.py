@@ -27,6 +27,7 @@ import time
 
 from interface.fast_counter_interface import FastCounterInterface
 from core.module import Base, ConfigOption
+from core.util.modules import get_main_dir
 import okfrontpanel as ok
 from core.util.mutex import Mutex
 
@@ -44,7 +45,24 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
         (SWIG) to access the dll library. Be aware that the wrapper is specified
         for a specific version of python (here python 3.4), and it is not
         guaranteed to be working with other versions.
+
+    Example config for copy-paste:
+
+    fpga_qo:
+        module.Class: 'fpga_fastcounter.fast_counter_fpga_qo.FastCounterFPGAQO'
+        fpgacounter_serial: '143400058N'
+        fpga_type: 'XEM6310_LX150'
+        #threshV_ch1: 0.5   # optional, threshold voltage for detection
+        #threshV_ch2: 0.5   # optional, threshold voltage for detection
+        #threshV_ch3: 0.5   # optional, threshold voltage for detection
+        #threshV_ch4: 0.5   # optional, threshold voltage for detection
+        #threshV_ch5: 0.5   # optional, threshold voltage for detection
+        #threshV_ch6: 0.5   # optional, threshold voltage for detection
+        #threshV_ch7: 0.5   # optional, threshold voltage for detection
+        #threshV_ch8: 0.5   # optional, threshold voltage for detection
+
     """
+
     _modclass = 'FastCounterFPGAQO'
     _modtype = 'hardware'
 
@@ -197,7 +215,7 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
         # upload the proper fast counter configuration bitfile to the FPGA
         bitfile_name = 'fastcounter_' + self._fpga_type + '.bit'
         # Load on the FPGA a configuration file (bit file).
-        self._fpga.ConfigureFPGA(os.path.join(self.get_main_dir(), 'thirdparty', 'qo_fpga',
+        self._fpga.ConfigureFPGA(os.path.join(get_main_dir(), 'thirdparty', 'qo_fpga',
                                               bitfile_name))
 
         # Check if the upload was successful and the Opal Kelly FrontPanel is
@@ -377,7 +395,7 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
         """ Start the fast counter. """
         self.saved_count_data = None
         # initialize the data array
-        self.count_data = np.zeros([self._number_of_gates, self._gate_length_bins])
+        self.count_data = np.zeros([self._number_of_gates, self._gate_length_bins], dtype='int64')
         # Start the counter.
         self._fpga.ActivateTriggerIn(0x40, 0)
         timeout = 5
@@ -444,8 +462,8 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
             buffer_encode = buffer_encode.reshape(512, 65536)[0:self._number_of_gates,
                                                               0:self._gate_length_bins]
 
-            # convert into float values
-            self.count_data = buffer_encode.astype(float, casting='safe')
+            # convert into int64 values
+            self.count_data = buffer_encode.astype('int64', casting='safe')
 
             # Add saved count data (in case of continued measurement)
             if self.saved_count_data is not None:
@@ -510,7 +528,7 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
 
         If fast counter is in pause state, then fast counter will be continued.
         """
-        self.count_data = np.zeros([self._number_of_gates, self._gate_length_bins])
+        self.count_data = np.zeros([self._number_of_gates, self._gate_length_bins], dtype='int64')
         # Check if fastcounter was in pause state
         if self.statusvar != 3:
             self.log.error('Can not continue fast counter since it was not in a paused state.')

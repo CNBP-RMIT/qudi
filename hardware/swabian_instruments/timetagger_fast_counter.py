@@ -27,6 +27,19 @@ import os
 
 
 class TimeTaggerFastCounter(Base, FastCounterInterface):
+    """ Hardware class to controls a Time Tagger from Swabian Instruments.
+
+    Example config for copy-paste:
+
+    fastcounter_timetagger:
+        module.Class: 'swabian_instruments.timetagger_fast_counter.TimeTaggerFastCounter'
+        timetagger_channel_apd_0: 0
+        timetagger_channel_apd_1: 1
+        timetagger_channel_detect: 2
+        timetagger_channel_sequence: 3
+        timetagger_sum_channels: 4
+
+    """
     _modclass = 'TimeTaggerFastCounter'
     _modtype = 'hardware'
 
@@ -41,7 +54,6 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
         """
         self._tagger = tt.createTimeTagger()
         self._tagger.reset()
-        config = self.getConfiguration()
 
         self._number_of_gates = int(100)
         self._bin_width = 1
@@ -107,7 +119,7 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
     def on_deactivate(self):
         """ Deactivate the FPGA.
         """
-        if self.getState() == 'locked':
+        if self.module_state() == 'locked':
             self.pulsed.stop()
         self.pulsed.clear()
         self.pulsed = None
@@ -149,7 +161,7 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
 
     def start_measure(self):
         """ Start the fast counter. """
-        self.lock()
+        self.module_state.lock()
         self.pulsed.clear()
         self.pulsed.start()
         self.statusvar = 2
@@ -157,9 +169,9 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
 
     def stop_measure(self):
         """ Stop the fast counter. """
-        if self.getState() == 'locked':
+        if self.module_state() == 'locked':
             self.pulsed.stop()
-            self.unlock()
+            self.module_state.unlock()
         self.statusvar = 1
         return 0
 
@@ -168,7 +180,7 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
 
         Fast counter must be initially in the run state to make it pause.
         """
-        if self.getState() == 'locked':
+        if self.module_state() == 'locked':
             self.pulsed.stop()
             self.statusvar = 3
         return 0
@@ -178,7 +190,7 @@ class TimeTaggerFastCounter(Base, FastCounterInterface):
 
         If fast counter is in pause state, then fast counter will be continued.
         """
-        if self.getState() == 'locked':
+        if self.module_state() == 'locked':
             self.pulsed.start()
             self.statusvar = 2
         return 0
