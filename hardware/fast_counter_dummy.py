@@ -25,12 +25,20 @@ import os
 import numpy as np
 
 from core.module import Base, ConfigOption
+from core.util.modules import get_main_dir
 from interface.fast_counter_interface import FastCounterInterface
 
 
 class FastCounterDummy(Base, FastCounterInterface):
-    """This is the Interface class to define the controls for the simple
-    microwave hardware.
+    """ Implementation of the FastCounter interface methods for a dummy usage.
+
+    Example config for copy-paste:
+
+    fastcounter_dummy:
+        module.Class: 'fast_counter_dummy.FastCounterDummy'
+        gated: False
+        #load_trace: None # path to the saved dummy trace
+
     """
     _modclass = 'fastcounterinterface'
     _modtype = 'hardware'
@@ -50,7 +58,7 @@ class FastCounterDummy(Base, FastCounterInterface):
 
         if self.trace_path is None:
             self.trace_path = os.path.join(
-                self.get_main_dir(),
+                get_main_dir(),
                 'tools',
                 'FastComTec_demo_timetrace.asc')
 
@@ -149,9 +157,12 @@ class FastCounterDummy(Base, FastCounterInterface):
         time.sleep(1)
         self.statusvar = 2
         try:
-            self._count_data = np.loadtxt(self.trace_path)
+            self._count_data = np.loadtxt(self.trace_path, dtype='int64')
         except:
             return -1
+
+        if self._gated:
+            self._count_data = self._count_data.transpose()
         return 0
 
     def pause_measure(self):

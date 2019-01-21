@@ -94,14 +94,14 @@ To create a Connector, declare it as a class variable in the module like this:
 ```python
 class <classname2>(...):
 ...
-    <connector name> = Connector(interface_name='<InterfaceForThisConnector>')
-    <another connector name> = Connector(interface_name='<InterfaceForTheOtherConnector>')
+    <connector name> = Connector(interface='<InterfaceForThisConnector>')
+    <another connector name> = Connector(interface='<InterfaceForTheOtherConnector>')
 ```
 
-A reference to the connected module can then be obtained at runtime by:
+A reference to the connected module can then be obtained at runtime by just calling the connector:
 
 ```python
-<connected module> = self.get_connector('<connector name>')
-<antother connected module> = self.get_connector('<another connector name>')
+<connected module> = self.<connector name>()
+<antother connected module> = self.<another connector name>()
 ```
 

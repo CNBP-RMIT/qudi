@@ -30,7 +30,7 @@ import scipy.ndimage.filters as filters
 import time
 
 from collections import OrderedDict
-from core.module import Connector
+from core.module import Connector, StatusVar
 from core.util.mutex import Mutex
 from datetime import datetime
 from logic.generic_logic import GenericLogic
@@ -49,7 +49,7 @@ class PoI:
         self.log = logging.getLogger(__name__)
 
         # The POI has fixed coordinates relative to the sample, enabling a map to be saved.
-        self._coords_in_sample = []
+        self._coords_in_sample = [0, 0, 0]
 
         # The POI is at a scanner position, which may vary with time (drift).  This time
         # trace records every time+position when the POI position was explicitly known.
@@ -66,26 +66,38 @@ class PoI:
 
         if pos is not None:
             if len(pos) != 3:
-                self.log.error('Given position does not contain 3 '
-                               'dimensions.'
-                               )
+                self.log.error('Given position does not contain 3 dimensions.')
+                pos = [0, 0, 0]
+
             # Store the time in the history log as seconds since 1970,
             # rather than as a datetime object.
             creation_time_sec = (self._creation_time - datetime.utcfromtimestamp(0)).total_seconds()
-            self._position_time_trace.append(
-                np.array([creation_time_sec, pos[0], pos[1], pos[2]]))
+            self._position_time_trace.append([creation_time_sec, pos[0], pos[1], pos[2]])
+            self._coords_in_sample = pos
+
         if name is None:
             self._name = self._creation_time.strftime('poi_%H%M%S')
         else:
             self._name = name
 
+    def to_dict(self):
+        return {
+            'name': self._name,
+            'key': self._key,
+            'time': self._creation_time,
+            'pos': self._coords_in_sample,
+            'history': self._position_time_trace
+        }
+
     def set_coords_in_sample(self, coords=None):
-        '''Defines the position of the poi relative to the sample,
+        """ Defines the position of the poi relative to the sample,
         allowing a sample map to be constructed.  Once set, these
         "coordinates in sample" will not be altered unless the user wants to
         manually redefine this POI (for example, they put the POI in
         the wrong place).
-        '''
+
+        @param float[3] coords: relative position of poi in sample
+        """
 
         if coords is not None:  # FIXME: Futurewarning fired here.
             if len(coords) != 3:
@@ -109,7 +121,7 @@ class PoI:
             return -1
         else:
             self._position_time_trace.append(
-                np.array([time.time(), position[0], position[1], position[2]]))
+                [time.time(), position[0], position[1], position[2]])
 
     def get_coords_in_sample(self):
         """ Returns the coordinates of the POI relative to the sample.
@@ -161,15 +173,21 @@ class PoI:
 
         return np.array(self._position_time_trace)
 
-    def delete_last_position(self):  # TODO:Rename to delete_last_position
+    def delete_last_position(self, empty_array_completely=False):
         """ Delete the last position in the history.
+        @param bool empty_array_completely: If _position_time_trace can be deleted completely
+                                            this variable is set to True if not the last value
+                                            will not be deleted
 
         @return float[4]: the position just deleted.
         """
-
-        if len(self._position_time_trace) > 0:
+        # do not delete initial position
+        if len(self._position_time_trace) > 1:
+            return self._position_time_trace.pop()
+        elif empty_array_completely:
             return self._position_time_trace.pop()
         else:
+            self.log.error('Position was not deleted, initial point of history reached.')
             return [-1., -1., -1., -1.]
 
 
@@ -186,6 +204,11 @@ class PoiManagerLogic(GenericLogic):
     scannerlogic = Connector(interface='ConfocalLogic')
     savelogic = Connector(interface='SaveLogic')
 
+    # status vars
+    poi_list = StatusVar(default=OrderedDict())
+    roi_name = StatusVar(default='')
+    active_poi = StatusVar(default=None)
+
     signal_timer_updated = QtCore.Signal()
     signal_poi_updated = QtCore.Signal()
     signal_poi_deleted = QtCore.Signal(str)
@@ -197,8 +220,6 @@ class PoiManagerLogic(GenericLogic):
     def __init__(self, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
-        self.roi_name = ''
-        self.poi_list = dict()
         self._current_poi_key = None
         self.go_to_crosshair_after_refocus = False  # default value
 
@@ -215,19 +236,9 @@ class PoiManagerLogic(GenericLogic):
         """ Initialisation performed during activation of the module.
         """
 
-        self._optimizer_logic = self.get_connector('optimizer1')
-        self._confocal_logic = self.get_connector('scannerlogic')
-        self._save_logic = self.get_connector('savelogic')
-
-        # initally add crosshair to the pois
-        crosshair = PoI(pos=[0, 0, 0], name='crosshair')
-        crosshair._key = 'crosshair'
-        self.poi_list[crosshair._key] = crosshair
-
-        # initally add sample to the pois
-        sample = PoI(pos=[0, 0, 0], name='sample')
-        sample._key = 'sample'
-        self.poi_list[sample._key] = sample
+        self._optimizer_logic = self.optimizer1()
+        self._confocal_logic = self.scannerlogic()
+        self._save_logic = self.savelogic()
 
         # listen for the refocus to finish
         self._optimizer_logic.sigRefocusFinished.connect(self._refocus_done)
@@ -235,13 +246,8 @@ class PoiManagerLogic(GenericLogic):
         # listen for the deactivation of a POI caused by moving to a different position
         self._confocal_logic.signal_change_position.connect(self.user_move_deactivates_poi)
 
-        self.testing()
-
         # Initialise the roi_map_data (xy confocal image)
         self.roi_map_data = self._confocal_logic.xy_image
-
-        # A POI is active if the scanner is at that POI
-        self.active_poi = None
 
     def on_deactivate(self):
         return
@@ -250,11 +256,6 @@ class PoiManagerLogic(GenericLogic):
         """ Deactivate the active POI if the confocal microscope scanner position is
         moved by anything other than the optimizer
         """
-        if tag != 'optimizer':
-            self._deactivate_poi()
-
-    def testing(self):
-        """ Debug function for testing. """
         pass
 
     def add_poi(self, position=None, key=None, emit_change=True):
@@ -268,12 +269,16 @@ class PoiManagerLogic(GenericLogic):
         # If there are only 2 POIs (sample and crosshair) then the newly added POI needs to start the sample drift logging.
         if len(self.poi_list) == 2:
             self.poi_list['sample']._creation_time = time.time()
-            self.poi_list['sample'].delete_last_position()
+            # When the poimanager is activated the 'sample' poi is created because it is needed
+            # from the beginning for various functionalities. If the tracking of the sample is started it has
+            # to be reset such that this first point is deleted here
+            # Probably this can be solved a lot nicer.
+            self.poi_list['sample'].delete_last_position(empty_array_completely=True)
             self.poi_list['sample'].add_position_to_history(position=[0, 0, 0])
             self.poi_list['sample'].set_coords_in_sample(coords=[0, 0, 0])
 
         if position is None:
-            position = self._confocal_logic.get_position()
+            position = self._confocal_logic.get_position()[:3]
         if len(position) != 3:
             self.log.error('Given position is not 3-dimensional.'
                            'Please pass POIManager a 3-dimensional position to set a POI.')
@@ -335,6 +340,23 @@ class PoiManagerLogic(GenericLogic):
 
         # TODO: Find a way to return a list of POI keys sorted in order of the POI names.
 
+    def delete_last_position(self, poikey=None):
+        """ Delete the last position in the history.
+
+        @param string poikey: the key of the poi
+
+        @return int: error code (0:OK, -1:error)
+        """
+        if poikey is not None and poikey in self.poi_list.keys():
+            self.poi_list[poikey].delete_last_position()
+            self.poi_list['sample'].delete_last_position()
+            self.signal_poi_updated.emit()
+            return 0
+        else:
+            self.log.error('The last position of given POI ({0}) could not be deleted.'.format(
+                poikey))
+            return -1
+
     def delete_poi(self, poikey=None):
         """ Completely deletes the whole given poi.
 
@@ -359,6 +381,8 @@ class PoiManagerLogic(GenericLogic):
             self.signal_poi_updated.emit()
             self.signal_poi_deleted.emit(poikey)
             return 0
+        elif poikey is None:
+            self.log.warning('No POI for deletion specified.')
         else:
             self.log.error('X. The given POI ({0}) does not exist.'.format(
                 poikey))
@@ -376,7 +400,7 @@ class PoiManagerLogic(GenericLogic):
         """
 
         if poikey is not None and poikey in self.poi_list.keys():
-            self.poi_list['crosshair'].add_position_to_history(position=self._confocal_logic.get_position())
+            self.poi_list['crosshair'].add_position_to_history(position=self._confocal_logic.get_position()[:3])
             self._current_poi_key = poikey
             self._optimizer_logic.start_refocus(
                 initial_pos=self.get_poi_position(poikey=poikey),
@@ -399,12 +423,17 @@ class PoiManagerLogic(GenericLogic):
             x, y, z = self.get_poi_position(poikey=poikey)
             self._confocal_logic.set_position('poimanager', x=x, y=y, z=z)
         else:
-            self.log.error('F. The given POI ({0}) does not exist.'.format(
+            self.log.error('The given POI ({0}) does not exist.'.format(
                 poikey))
             return -1
-
         # This is now the active POI to send to save logic for naming in any saved filenames.
         self.set_active_poi(poikey)
+
+        #Fixme: After pressing the Go to Poi button the active poi is empty and the following lines do fix this
+        # The time.sleep is somehow needed if not active_poi can not be set
+        time.sleep(0.001)
+        self.active_poi = self.poi_list[poikey]
+        self.signal_poi_updated.emit()
 
     def get_poi_position(self, poikey=None):
         """ Returns the current position of the given poi, calculated from the
@@ -419,7 +448,6 @@ class PoiManagerLogic(GenericLogic):
 
             poi_coords = self.poi_list[poikey].get_coords_in_sample()
             sample_pos = self.poi_list['sample'].get_position_history()[-1, :][1:4]
-
             return sample_pos + poi_coords
 
         else:
@@ -440,7 +468,7 @@ class PoiManagerLogic(GenericLogic):
 
         # If no new position is given, take the current confocal crosshair position
         if newpos is None:
-            newpos = self._confocal_logic.get_position()
+            newpos = self._confocal_logic.get_position()[:3]
 
         if poikey is not None and poikey in self.poi_list.keys():
             if len(newpos) != 3:
@@ -468,7 +496,7 @@ class PoiManagerLogic(GenericLogic):
         but DOES NOT update the sample position.
         """
         if newpos is None:
-            newpos = self._confocal_logic.get_position()
+            newpos = self._confocal_logic.get_position()[:3]
 
         if poikey is not None and poikey in self.poi_list.keys():
             if len(newpos) != 3:
@@ -615,21 +643,21 @@ class PoiManagerLogic(GenericLogic):
                     self.go_to_poi(poikey=self._current_poi_key)
                 return 0
             else:
-                self.log.error('W. The given POI ({0}) does not exist.'.format(
+                self.log.error('The given POI ({0}) does not exist.'.format(
                     self._current_poi_key))
                 return -1
 
         else:
-            self.log.error('Unknown caller_tag for the optimizer. POI '
-                           'Manager does not know what to do with optimized '
-                           'position, and has done nothing.'
-                           )
+            self.log.warning("Unknown caller_tag for the optimizer. POI "
+                             "Manager does not know what to do with optimized "
+                             "position, and has done nothing.")
 
     def reset_roi(self):
 
         del self.poi_list
-
         self.poi_list = dict()
+
+        self.active_poi = None
 
         self.roi_name = ''
 
@@ -683,8 +711,8 @@ class PoiManagerLogic(GenericLogic):
             self._save_logic.active_poi_name = ''
 
     def save_poi_map_as_roi(self):
-        '''Save a list of POIs with their coordinates to a file.
-        '''
+        """ Save a list of POIs with their coordinates to a file.
+        """
         # File path and name
         filepath = self._save_logic.get_path_for_module(module_name='ROIs')
 
@@ -714,11 +742,14 @@ class PoiManagerLogic(GenericLogic):
         data['Y'] = np.array(y_coords)
         data['Z'] = np.array(z_coords)
 
-        self._save_logic.save_data(data, filepath=filepath, filelabel=self.roi_name,
-                                   fmt=['%s', '%s', '%.6e', '%.6e', '%.6e'])
+        self._save_logic.save_data(
+            data,
+            filepath=filepath,
+            filelabel=self.roi_name,
+            fmt=['%s', '%s', '%.6e', '%.6e', '%.6e']
+        )
 
         self.log.debug('ROI saved to:\n{0}'.format(filepath))
-
         return 0
 
     def load_roi_from_file(self, filename=None):
@@ -726,23 +757,75 @@ class PoiManagerLogic(GenericLogic):
         if filename is None:
             return -1
 
-        roifile = open(filename, 'r')
+        with open(filename, 'r') as roifile:
+            for line in roifile:
+                if line[0] != '#' and line.split()[0] != 'NaN':
+                    saved_poi_name = line.split()[0]
+                    saved_poi_key = line.split()[1]
+                    saved_poi_coords = [
+                        float(line.split()[2]), float(line.split()[3]), float(line.split()[4])]
 
-        for line in roifile:
-            if line[0] != '#' and line.split()[0] != 'NaN':
-                saved_poi_name = line.split()[0]
-                saved_poi_key = line.split()[1]
-                saved_poi_coords = [
-                    float(line.split()[2]), float(line.split()[3]), float(line.split()[4])]
+                    this_poi_key = self.add_poi(
+                        position=saved_poi_coords,
+                        key=saved_poi_key,
+                        emit_change=False)
+                    self.rename_poi(poikey=this_poi_key, name=saved_poi_name, emit_change=False)
 
-                this_poi_key = self.add_poi(position=saved_poi_coords, key=saved_poi_key, emit_change=False)
-                self.rename_poi(poikey=this_poi_key, name=saved_poi_name, emit_change=False)
-
-        roifile.close()
-        # Now that all the POIs are created, emit the signal for other things (ie gui) to update
-        self.signal_poi_updated.emit()
-
+            # Now that all the POIs are created, emit the signal for other things (ie gui) to update
+            self.signal_poi_updated.emit()
         return 0
+
+    @poi_list.constructor
+    def dict_to_poi_list(self, val):
+        pdict = {}
+        # initially add crosshair to the pois
+        crosshair = PoI(pos=[0, 0, 0], name='crosshair')
+        crosshair._key = 'crosshair'
+        pdict[crosshair._key] = crosshair
+
+        # initally add sample to the pois
+        sample = PoI(pos=[0, 0, 0], name='sample')
+        sample._key = 'sample'
+        pdict[sample._key] = sample
+
+        if isinstance(val, dict):
+            for key, poidict in val.items():
+                try:
+                    if len(poidict['pos']) >= 3:
+                        newpoi = PoI(name=poidict['name'], key=poidict['key'])
+                        newpoi.set_coords_in_sample(poidict['pos'])
+                        newpoi._creation_time = poidict['time']
+                        newpoi._position_time_trace = poidict['history']
+                        pdict[key] = newpoi
+                except Exception as e:
+                    self.log.exception('Could not load PoI {0}: {1}'.format(key, poidict))
+        return pdict
+
+    @poi_list.representer
+    def poi_list_to_dict(self, val):
+        pdict = {
+            key: poi.to_dict() for key, poi in val.items()
+        }
+        return pdict
+
+    @active_poi.representer
+    def active_poi_to_dict(self, val):
+        if isinstance(val, PoI):
+            return val.to_dict()
+        return None
+
+    @active_poi.constructor
+    def dict_to_active_poi(self, val):
+        try:
+            if isinstance(val, dict):
+                if len(val['pos']) >= 3:
+                    newpoi = PoI(pos=val['pos'], name=val['name'], key=val['key'])
+                    newpoi._creation_time = val['time']
+                    newpoi._position_time_trace = val['history']
+                    return newpoi
+        except Exception as e:
+            self.log.exception('Could not load active poi {0}'.format(val))
+            return None
 
     def triangulate(self, r, a1, b1, c1, a2, b2, c2):
         """ Reorients a coordinate r that is known relative to reference points a1, b1, c1 to

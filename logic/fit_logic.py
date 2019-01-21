@@ -31,6 +31,7 @@ from collections import OrderedDict
 from distutils.version import LooseVersion
 
 from logic.generic_logic import GenericLogic
+from core.util.modules import get_main_dir
 from core.util.mutex import Mutex
 from core.config import load, save
 
@@ -60,13 +61,13 @@ class FitLogic(GenericLogic):
 
         filenames = []
         # for path in directories:
-        path = join(self.get_main_dir(), 'logic', 'fitmethods')
+        path = join(get_main_dir(), 'logic', 'fitmethods')
         for f in listdir(path):
             if isfile(join(path, f)):
                 if f[-3:] == '.py':
                     filenames.append(f[:-3])
 
-        # A dictionary contianing all fit methods and their estimators.
+        # A dictionary containing all fit methods and their estimators.
         self.fit_list = OrderedDict()
         self.fit_list['1d'] = OrderedDict()
         self.fit_list['2d'] = OrderedDict()

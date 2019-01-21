@@ -23,6 +23,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import os
 import okfrontpanel as ok
 from core.module import Base, ConfigOption
+from core.util.modules import get_main_dir
 from core.util.mutex import Mutex
 from interface.switch_interface import SwitchInterface
 
@@ -37,6 +38,13 @@ class HardwareSwitchFpga(Base, SwitchInterface):
     The Frontpanel is basically a C++ interface, where a wrapper was used (SWIG) to access the
     dll library. Be aware that the wrapper is specified for a specific version of python
     (here python 3.4), and it is not guaranteed to be working with other versions.
+
+    Example config for copy-paste:
+
+    fpga_oks6_switch:
+        module.Class: 'switches.ok_fpga.ok_s6_switch.HardwareSwitchFpga'
+        fpga_serial: '143400058N'
+
     """
     _modclass = 'HardwareSwitchFpga'
     _modtype = 'hardware'
@@ -89,7 +97,7 @@ class HardwareSwitchFpga(Base, SwitchInterface):
         # upload the proper hardware switch configuration bitfile to the FPGA
         bitfile_name = 'switch_8chnl_withcopy_LX150.bit'
         # Load on the FPGA a configuration file (bit file).
-        self._fpga.ConfigureFPGA(os.path.join(self.get_main_dir(), 'thirdparty', 'qo_fpga',
+        self._fpga.ConfigureFPGA(os.path.join(get_main_dir(), 'thirdparty', 'qo_fpga',
                                               bitfile_name))
 
         # Check if the upload was successful and the Opal Kelly FrontPanel is enabled on the FPGA

@@ -82,8 +82,8 @@ class GatedCounterGui(GUIBase):
                          had happened.
         """
 
-        self._counter_logic = self.get_connector('gatedcounterlogic1')
-        self._trace_analysis = self.get_connector('traceanalysislogic1')
+        self._counter_logic = self.gatedcounterlogic1()
+        self._trace_analysis = self.traceanalysislogic1()
 
         self._mw = GatedCounterMainWindow()
         self._mw.centralwidget.hide()
@@ -160,6 +160,9 @@ class GatedCounterGui(GUIBase):
         # Push buttons
         self._mw.fit_PushButton.clicked.connect(self.fit_clicked)
 
+        # Connect analysis result update
+        self._trace_analysis.sigAnalysisResultsUpdated.connect(self.update_analysis_results)
+
 
     def on_deactivate(self):
         """ Deinitialisation performed during deactivation of the module.
@@ -194,7 +197,7 @@ class GatedCounterGui(GUIBase):
     def start_clicked(self):
         """ Handling the Start button to stop and restart the counter. """
 
-        if self._counter_logic.getState() != 'locked':
+        if self._counter_logic.module_state() != 'locked':
             self.sigStartGatedCounter.emit()
             self._mw.start_counter_Action.setEnabled(False)
             self._mw.stop_counter_Action.setEnabled(True)
@@ -202,7 +205,7 @@ class GatedCounterGui(GUIBase):
     def stop_clicked(self):
         """ Handling the Stop button to stop and restart the counter. """
 
-        if self._counter_logic.getState() == 'locked':
+        if self._counter_logic.module_state() == 'locked':
             self.sigStopGatedCounter.emit()
             self.reset_toolbar_display()
 
@@ -245,7 +248,7 @@ class GatedCounterGui(GUIBase):
     def update_trace(self):
         """ The function that grabs the data and sends it to the plot. """
 
-        if self._counter_logic.getState() == 'locked':
+        if self._counter_logic.module_state() == 'locked':
             self._trace1.setData(x=np.arange(0, self._counter_logic.get_count_length()),
                                  y=self._counter_logic.countdata[0] )
 
@@ -290,3 +293,11 @@ class GatedCounterGui(GUIBase):
         self._mw.fit_param_TextEdit.setPlainText(fit_result)
 
         return
+
+
+    def update_analysis_results(self):
+        """ Update the spin flip probability and the fidelities. """
+
+        self._mw.spin_flip_prob_DSpinBox.setValue(self._trace_analysis.spin_flip_prob*100)
+        self._mw.fidelity_left_DSpinBox.setValue(self._trace_analysis.fidelity_left*100)
+        self._mw.fidelity_right_DSpinBox.setValue(self._trace_analysis.fidelity_right*100)

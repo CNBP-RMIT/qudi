@@ -9,7 +9,7 @@ Originally built around a confocal fluorescence microscope experiments, it has g
   * Position optimization for fluorescent spots
   * Tracking of fluorescent spots
   * Tektronix AWG 5000 7000 and 70000 support for pulsed microwave experiments
-  * Anritsu MG37022A and MG3696B, R&S SMIQ and SMR support for ODMR measurements
+  * Anritsu MG37022A, MG3696B and MG3961C, R&S SMIQ and SMR support for ODMR measurements
   * Getting spectra from the WinSpec32 spectroscopy software
   * Thorlabs APT motor control
   * Magnetic field alignment for NV- in diamond via fluorescence, ODMR and nuclear spin
@@ -26,7 +26,6 @@ User and code documentation about Qudi is located at http://ulm-iqo.github.io/qu
 [![Build Status](https://travis-ci.org/Ulm-IQO/qudi.svg?branch=master)](https://travis-ci.org/Ulm-IQO/qudi)
 [![Build status](https://ci.appveyor.com/api/projects/status/ma1a125b31cbl6tu/branch/master?svg=true)](https://ci.appveyor.com/project/InstituteforQuantumOptics/qudi/branch/master)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/Ulm-IQO/qudi/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/Ulm-IQO/qudi/?branch=master)
-[![Code Issues](https://www.quantifiedcode.com/api/v1/project/d31724e4b9704732ac1f508c7de1999d/badge.svg)](https://www.quantifiedcode.com/app/project/d31724e4b9704732ac1f508c7de1999d)
 
 ## Collaboration
 For development-related questions and discussion, please use the [qudi-dev mailing list](http://www.freelists.org/list/qudi-dev).

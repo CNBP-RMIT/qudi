@@ -26,6 +26,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 """
 
 from core.module import Base, ConfigOption
+from core.util.modules import get_home_dir
 from interface.pulser_interface import PulserInterface, PulserConstraints
 from collections import OrderedDict
 
@@ -35,7 +36,16 @@ import hardware.swabian_instruments.pulse_streamer_pb2 as pulse_streamer_pb2
 import dill
 
 class PulseStreamer(Base, PulserInterface):
-    """Methods to control PulseStreamer.
+    """ Methods to control PulseStreamer.
+
+    Example config for copy-paste:
+
+    pulse_streamer:
+        module.Class: 'swabian_instruments.pulse_streamer.PulseStreamer'
+        pulsestreamer_ip: '192.168.1.100'
+        laser_channel: 0
+        uw_x_channel: 2
+
     """
     _modclass = 'pulserinterface'
     _modtype = 'hardware'
@@ -51,7 +61,7 @@ class PulseStreamer(Base, PulserInterface):
             self.pulsed_file_dir = config['pulsed_file_dir']
 
             if not os.path.exists(self.pulsed_file_dir):
-                homedir = self.get_home_dir()
+                homedir = get_home_dir()
                 self.pulsed_file_dir = os.path.join(homedir, 'pulsed_files')
                 self.log.warning('The directory defined in parameter '
                             '"pulsed_file_dir" in the config for '
@@ -59,7 +69,7 @@ class PulseStreamer(Base, PulserInterface):
                             'The default home directory\n{0}\n will be taken '
                             'instead.'.format(self.pulsed_file_dir))
         else:
-            homedir = self.get_home_dir()
+            homedir = get_home_dir()
             self.pulsed_file_dir = os.path.join(homedir, 'pulsed_files')
             self.log.warning('No parameter "pulsed_file_dir" was specified in the config for '
                              'PulseStreamer as directory for the pulsed files!\nThe default home '
@@ -134,10 +144,10 @@ class PulseStreamer(Base, PulserInterface):
 
         # sample file length max is not well-defined for PulseStreamer, which collates sequential identical pulses into
         # one. Total number of not-sequentially-identical pulses which can be stored: 1 M.
-        constraints.sampled_file_length.min = 1
-        constraints.sampled_file_length.max = 134217728
-        constraints.sampled_file_length.step = 1
-        constraints.sampled_file_length.default = 1
+        constraints.waveform_length.min = 1
+        constraints.waveform_length.max = 134217728
+        constraints.waveform_length.step = 1
+        constraints.waveform_length.default = 1
 
         # the name a_ch<num> and d_ch<num> are generic names, which describe UNAMBIGUOUSLY the
         # channels. Here all possible channel configurations are stated, where only the generic
