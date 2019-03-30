@@ -39,7 +39,7 @@ class SimpleDataLogic(GenericLogic):
     def on_activate(self):
         """ Prepare logic module for work.
         """
-        self._data_logic = self.get_connector('simpledata')
+        self._data_logic = self.simpledata()
         self.stopRequest = False
         self.bufferLength = 10000
         self.sigRepeat.connect(self.measureLoop, QtCore.Qt.QueuedConnection)
@@ -54,7 +54,7 @@ class SimpleDataLogic(GenericLogic):
         self.window_len = 50
         self.buf = np.zeros((self.bufferLength,  self._data_logic.getChannels()))
         self.smooth = np.zeros((self.bufferLength + self.window_len - 1,  self._data_logic.getChannels()))
-        self.lock()
+        self.module_state.lock()
         self.sigRepeat.emit()
 
     def stopMeasure(self):
@@ -66,7 +66,7 @@ class SimpleDataLogic(GenericLogic):
         """
         if self.stopRequest:
             self.stopRequest = False
-            self.unlock()
+            self.module_state.unlock()
             return
 
         data = np.zeros((100,  self._data_logic.getChannels()))

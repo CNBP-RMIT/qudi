@@ -16,6 +16,9 @@
   <layout class="QGridLayout" name="gridLayout_2">
    <item row="0" column="0">
     <widget class="QScrollArea" name="scrollArea">
+     <property name="sizeAdjustPolicy">
+      <enum>QAbstractScrollArea::AdjustIgnored</enum>
+     </property>
      <property name="widgetResizable">
       <bool>true</bool>
      </property>
@@ -24,13 +27,16 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>1161</width>
-        <height>622</height>
+        <width>1157</width>
+        <height>618</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout">
        <item row="0" column="0">
         <layout class="QVBoxLayout" name="verticalLayout">
+         <item>
+          <layout class="QGridLayout" name="global_param_gridLayout"/>
+         </item>
          <item>
           <widget class="QLabel" name="hintLabel">
            <property name="text">
@@ -49,6 +55,9 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>scrollArea</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

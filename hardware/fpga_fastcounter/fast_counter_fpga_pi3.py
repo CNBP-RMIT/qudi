@@ -24,10 +24,25 @@ import os
 import thirdparty.stuttgart_counter.TimeTagger as tt
 
 from core.module import Base, ConfigOption
+from core.util.modules import get_main_dir
 from interface.fast_counter_interface import FastCounterInterface
 
 
 class FastCounterFGAPiP3(Base, FastCounterInterface):
+    """ Qudi module for the an FPGA based FastCounter.
+
+    Example config for copy-paste:
+
+    fpga_pi3:
+        module.Class: 'fpga_fastcounter.fast_counter_fpga_pi3.FastCounterFGAPiP3'
+        fpgacounter_serial: '143400058N'
+        fpgacounter_channel_apd_0: 1
+        fpgacounter_channel_apd_1: 3
+        fpgacounter_channel_detect: 2
+        fpgacounter_channel_sequence: 6
+
+    """
+
     _modclass = 'FastCounterFGAPiP3'
     _modtype = 'hardware'
 
@@ -42,7 +57,7 @@ class FastCounterFGAPiP3(Base, FastCounterInterface):
         """ Connect and configure the access to the FPGA.
         """
         tt._Tagger_setSerial(self._fpgacounter_serial)
-        thirdpartypath = os.path.join(self.get_main_dir(), 'thirdparty')
+        thirdpartypath = os.path.join(get_main_dir(), 'thirdparty')
         bitfilepath = os.path.join(thirdpartypath, 'stuttgart_counter', 'TimeTaggerController.bit')
         tt._Tagger_setBitfilePath(bitfilepath)
         del bitfilepath, thirdpartypath
@@ -107,7 +122,7 @@ class FastCounterFGAPiP3(Base, FastCounterInterface):
     def on_deactivate(self):
         """ Deactivate the FPGA.
         """
-        if self.getState() == 'locked':
+        if self.module_state() == 'locked':
             self.pulsed.stop()
         self.pulsed.clear()
         self.pulsed = None
@@ -145,7 +160,7 @@ class FastCounterFGAPiP3(Base, FastCounterInterface):
 
     def start_measure(self):
         """ Start the fast counter. """
-        self.lock()
+        self.module_state.lock()
         self.pulsed.clear()
         self.pulsed.start()
         self.statusvar = 2
@@ -153,9 +168,9 @@ class FastCounterFGAPiP3(Base, FastCounterInterface):
 
     def stop_measure(self):
         """ Stop the fast counter. """
-        if self.getState() == 'locked':
+        if self.module_state() == 'locked':
             self.pulsed.stop()
-            self.unlock()
+            self.module_state.unlock()
         self.statusvar = 1
         return 0
 
@@ -164,7 +179,7 @@ class FastCounterFGAPiP3(Base, FastCounterInterface):
 
         Fast counter must be initially in the run state to make it pause.
         """
-        if self.getState() == 'locked':
+        if self.module_state() == 'locked':
             self.pulsed.stop()
             self.statusvar = 3
         return 0
@@ -174,7 +189,7 @@ class FastCounterFGAPiP3(Base, FastCounterInterface):
 
         If fast counter is in pause state, then fast counter will be continued.
         """
-        if self.getState() == 'locked':
+        if self.module_state() == 'locked':
             self.pulsed.start()
             self.statusvar = 2
         return 0

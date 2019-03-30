@@ -35,12 +35,26 @@ from interface.microwave_interface import TriggerEdge
 
 
 class MicrowaveAnritsu(Base, MicrowaveInterface):
-    """  Hardware controlfile for Anritsu Devices.  """
+    """ Hardware control file for Anritsu Devices.
+
+    Tested for the model MG37022A with Option 4.
+
+    Example config for copy-paste:
+
+    mw_source_anritsu:
+        module.Class: 'microwave.mw_source_anritsu.MicrowaveAnritsu'
+        gpib_address: 'GPIB0::12::INSTR'
+        gpib_timeout: 10 # in seconds
+
+    """
 
     _modclass = 'MicrowaveAnritsu'
     _modtype = 'hardware'
     _gpib_address = ConfigOption('gpib_address', missing='error')
     _gpib_timeout = ConfigOption('gpib_timeout', 10, missing='warn')
+
+    # Indicate how fast frequencies within a list or sweep mode can be changed:
+    _FREQ_SWITCH_SPEED = 0.009  # Frequency switching speed in s (acc. to specs)
 
     def on_activate(self):
         """ Initialisation performed during activation of the module.
@@ -67,7 +81,7 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
 
     def _command_wait(self, command_str):
         """
-        Writes the command in command_str via GPIB and waits until the device has finished 
+        Writes the command in command_str via GPIB and waits until the device has finished
         processing it.
 
         @param command_str: The command to be written
@@ -99,7 +113,7 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
         return limits
 
     def off(self):
-        """ 
+        """
         Switches off any microwave output.
         Must return AFTER the device is actually stopped.
 
@@ -111,11 +125,11 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
         return 0
 
     def get_status(self):
-        """ 
-        Gets the current status of the MW source, i.e. the mode (cw, list or sweep) and 
+        """
+        Gets the current status of the MW source, i.e. the mode (cw, list or sweep) and
         the output state (stopped, running)
 
-        @return str, bool: mode ['cw', 'list', 'sweep'], is_running [True, False] 
+        @return str, bool: mode ['cw', 'list', 'sweep'], is_running [True, False]
         """
         is_running = bool(int(float(self._gpib_connection.query('OUTP:STAT?'))))
         mode = self._gpib_connection.query(':FREQ:MODE?').strip('\n').lower()
@@ -124,17 +138,17 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
         return mode, is_running
 
     def get_power(self):
-        """ 
-        Gets the microwave output power. 
+        """
+        Gets the microwave output power.
 
         @return float: the power set at the device in dBm
         """
         return float(self._gpib_connection.query(':POW?'))
 
     def get_frequency(self):
-        """ 
+        """
         Gets the frequency of the microwave output.
-        Returns single float value if the device is in cw mode. 
+        Returns single float value if the device is in cw mode.
         Returns list like [start, stop, step] if the device is in sweep mode.
         Returns list of frequencies if the device is in list mode.
 
@@ -154,8 +168,7 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
             stop = float(self._gpib_connection.query(':LIST:FREQ?'))
             self._gpib_connection.write(':LIST:IND 0')
             start = float(self._gpib_connection.query(':LIST:FREQ?'))
-            step = (stop - start) / (stop_index-1)
-            return_val = np.arange(start, stop + step, step)
+            return_val = np.linspace(start, stop, stop_index + 1)
         return return_val
 
     def cw_on(self):
@@ -181,7 +194,7 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
         return 0
 
     def set_cw(self, frequency=None, power=None):
-        """ 
+        """
         Configures the device for cw-mode and optionally sets frequency and/or power
 
         @param float frequency: frequency to set in Hz
@@ -235,7 +248,7 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
         return 0
 
     def set_list(self, frequency=None, power=None):
-        """ 
+        """
         Configures the device for list-mode and optionally sets frequencies and/or power
 
         @param list frequency: list of frequencies in Hz
@@ -255,13 +268,10 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
         self._gpib_connection.write(':LIST:IND 0')
 
         if frequency is not None:
-            s = ' {0:f},'.format(frequency[0])
-            for f in frequency[:-2]:
-                s += ' {0:f},'.format(f)
-            s += ' {0:f}'.format(frequency[-1])
-            self._gpib_connection.write(':LIST:FREQ' + s)
+            s = ', '.join('{0:f}'.format(f) for f in frequency)
+            self._gpib_connection.write(':LIST:FREQ ' + s)
             self._gpib_connection.write(':LIST:STAR 0')
-            self._gpib_connection.write(':LIST:STOP {0:d}'.format(len(frequency)))
+            self._gpib_connection.write(':LIST:STOP {0:d}'.format(len(frequency)-1))
             self._gpib_connection.write(':LIST:MODE MAN')
             self._gpib_connection.write('*WAI')
             self._command_wait(':LIST:IND 0')
@@ -277,7 +287,7 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
         return actual_freq, actual_power, mode
 
     def reset_listpos(self):
-        """ 
+        """
         Reset of MW list mode position to start (first frequency step)
 
         @return int: error code (0:OK, -1:error)
@@ -308,14 +318,14 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
         return 0
 
     def set_sweep(self, start=None, stop=None, step=None, power=None):
-        """ 
-        Configures the device for sweep-mode and optionally sets frequency start/stop/step 
+        """
+        Configures the device for sweep-mode and optionally sets frequency start/stop/step
         and/or power
-        
-        @return float, float, float, float, str: current start frequency in Hz, 
+
+        @return float, float, float, float, str: current start frequency in Hz,
                                                  current stop frequency in Hz,
                                                  current frequency step in Hz,
-                                                 current power in dBm, 
+                                                 current power in dBm,
                                                  current mode
         """
         mode, is_running = self.get_status()
@@ -346,7 +356,7 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
         return freq_list[0], freq_list[1], freq_list[2], actual_power, mode
 
     def reset_sweeppos(self):
-        """ 
+        """
         Reset of MW sweep mode position to start (start frequency)
 
         @return int: error code (0:OK, -1:error)
@@ -354,12 +364,14 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
         self._command_wait(':ABORT')
         return 0
 
-    def set_ext_trigger(self, pol=TriggerEdge.RISING):
+    def set_ext_trigger(self, pol, timing):
         """ Set the external trigger for this device with proper polarization.
 
         @param TriggerEdge pol: polarisation of the trigger (basically rising edge or falling edge)
+        @param float timing: estimated time between triggers
 
-        @return object: current trigger polarity [TriggerEdge.RISING, TriggerEdge.FALLING]
+        @return object, float: current trigger polarity [TriggerEdge.RISING, TriggerEdge.FALLING],
+            trigger timing
         """
         if pol == TriggerEdge.RISING:
             edge = 'POS'
@@ -374,6 +386,24 @@ class MicrowaveAnritsu(Base, MicrowaveInterface):
 
         polarity = self._gpib_connection.query(':TRIG:SEQ3:SLOPE?')
         if 'NEG' in polarity:
-            return TriggerEdge.FALLING
+            return TriggerEdge.FALLING, timing
         else:
-            return TriggerEdge.RISING
+            return TriggerEdge.RISING, timing
+
+    def trigger(self):
+        """ Trigger the next element in the list or sweep mode programmatically.
+
+        @return int: error code (0:OK, -1:error)
+
+        Ensure that the Frequency was set AFTER the function returns, or give
+        the function at least a save waiting time.
+        """
+
+        # WARNING:
+        # The manual trigger functionality was not tested for this device!
+        # Might not work well! Please check that!
+
+        self._gpib_connection.write('*TRG')
+        time.sleep(self._FREQ_SWITCH_SPEED)  # that is the switching speed
+        return 0
+
