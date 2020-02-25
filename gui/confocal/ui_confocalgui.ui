@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1261</width>
-    <height>1362</height>
+    <height>1290</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -389,10 +389,22 @@
    </widget>
   </widget>
   <widget class="QDockWidget" name="scan_control_dockWidget">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>605</width>
+     <height>190</height>
+    </size>
+   </property>
    <property name="maximumSize">
     <size>
      <width>524287</width>
-     <height>170</height>
+     <height>200</height>
     </size>
    </property>
    <property name="windowTitle">
@@ -405,6 +417,12 @@
     <layout class="QGridLayout" name="gridLayout_3">
      <item row="0" column="3">
       <widget class="Line" name="line">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
@@ -412,6 +430,12 @@
      </item>
      <item row="0" column="4" colspan="2">
       <widget class="QLabel" name="scanrangeLabel">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="text">
         <string>Scan Range</string>
        </property>
@@ -436,7 +460,7 @@
      <item row="2" column="0">
       <widget class="QLabel" name="xAxisLabel">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -459,7 +483,7 @@
      <item row="2" column="1">
       <widget class="QSpinBox" name="x_res_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -504,6 +528,12 @@
      </item>
      <item row="2" column="3">
       <widget class="Line" name="line_2">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
@@ -512,7 +542,7 @@
      <item row="2" column="5">
       <widget class="ScienDSpinBox" name="x_max_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -525,7 +555,7 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>70</width>
+         <width>80</width>
          <height>16777215</height>
         </size>
        </property>
@@ -580,7 +610,7 @@
      <item row="2" column="7">
       <widget class="ScienDSpinBox" name="x_current_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -593,7 +623,7 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>80</width>
          <height>16777215</height>
         </size>
        </property>
@@ -635,7 +665,7 @@
      <item row="3" column="0">
       <widget class="QLabel" name="yAxisLabel">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -654,6 +684,12 @@
      </item>
      <item row="3" column="3">
       <widget class="Line" name="line_3">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
@@ -662,7 +698,7 @@
      <item row="3" column="4">
       <widget class="ScienDSpinBox" name="y_min_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -675,7 +711,7 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>70</width>
+         <width>80</width>
          <height>16777215</height>
         </size>
        </property>
@@ -714,7 +750,7 @@
      <item row="3" column="5">
       <widget class="ScienDSpinBox" name="y_max_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -727,7 +763,7 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>70</width>
+         <width>80</width>
          <height>16777215</height>
         </size>
        </property>
@@ -800,7 +836,7 @@
      <item row="3" column="7">
       <widget class="ScienDSpinBox" name="y_current_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -813,7 +849,7 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>80</width>
          <height>16777215</height>
         </size>
        </property>
@@ -855,7 +891,7 @@
      <item row="4" column="0">
       <widget class="QLabel" name="zAxisLabel">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -881,7 +917,7 @@
      <item row="4" column="1">
       <widget class="QSpinBox" name="z_res_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -926,6 +962,12 @@
      </item>
      <item row="4" column="3">
       <widget class="Line" name="line_4">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
@@ -934,7 +976,7 @@
      <item row="4" column="4">
       <widget class="ScienDSpinBox" name="z_min_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -947,7 +989,7 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>70</width>
+         <width>80</width>
          <height>16777215</height>
         </size>
        </property>
@@ -986,7 +1028,7 @@
      <item row="4" column="5">
       <widget class="ScienDSpinBox" name="z_max_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -999,7 +1041,7 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>70</width>
+         <width>80</width>
          <height>16777215</height>
         </size>
        </property>
@@ -1051,7 +1093,7 @@
      <item row="4" column="7">
       <widget class="ScienDSpinBox" name="z_current_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -1064,7 +1106,7 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>80</width>
          <height>16777215</height>
         </size>
        </property>
@@ -1103,7 +1145,7 @@
      <item row="2" column="4">
       <widget class="ScienDSpinBox" name="x_min_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -1116,7 +1158,7 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>70</width>
+         <width>80</width>
          <height>16777215</height>
         </size>
        </property>
@@ -1161,7 +1203,7 @@
         <bool>false</bool>
        </property>
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -1207,7 +1249,7 @@
         <bool>false</bool>
        </property>
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -1220,7 +1262,7 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>70</width>
+         <width>80</width>
          <height>16777215</height>
         </size>
        </property>
@@ -1262,7 +1304,7 @@
      <item row="4" column="2">
       <widget class="ScienDSpinBox" name="z_res_length_InputWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -1275,7 +1317,7 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>70</width>
+         <width>80</width>
          <height>16777215</height>
         </size>
        </property>
@@ -1314,65 +1356,10 @@
        </property>
       </widget>
      </item>
-     <item row="2" column="2">
-      <widget class="ScienDSpinBox" name="x_res_length_InputWidget">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>0</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>70</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="mouseTracking">
-        <bool>true</bool>
-       </property>
-       <property name="acceptDrops">
-        <bool>true</bool>
-       </property>
-       <property name="toolTip">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600;&quot;&gt;XY-Resolution in length&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-       <property name="buttonSymbols">
-        <enum>QAbstractSpinBox::NoButtons</enum>
-       </property>
-       <property name="accelerated">
-        <bool>true</bool>
-       </property>
-       <property name="decimals">
-        <number>2</number>
-       </property>
-       <property name="minimum">
-        <double>0.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>1000.000000000000000</double>
-       </property>
-       <property name="singleStep">
-        <double>0.100000000000000</double>
-       </property>
-       <property name="value">
-        <double>1.000000000000000</double>
-       </property>
-      </widget>
-     </item>
      <item row="0" column="1" colspan="2">
       <widget class="QLabel" name="resolutionLabel">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -1410,10 +1397,65 @@
      <item row="5" column="2">
       <widget class="QRadioButton" name="length_res_RadioButton">
        <property name="text">
-        <string>length</string>
+        <string>size</string>
        </property>
        <property name="checked">
         <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="ScienDSpinBox" name="x_res_length_InputWidget">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>80</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="mouseTracking">
+        <bool>true</bool>
+       </property>
+       <property name="acceptDrops">
+        <bool>true</bool>
+       </property>
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600;&quot;&gt;XY-Resolution in length&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::NoButtons</enum>
+       </property>
+       <property name="accelerated">
+        <bool>true</bool>
+       </property>
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="minimum">
+        <double>0.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="value">
+        <double>1.000000000000000</double>
        </property>
       </widget>
      </item>
@@ -1682,10 +1724,16 @@
      <verstretch>0</verstretch>
     </sizepolicy>
    </property>
+   <property name="minimumSize">
+    <size>
+     <width>300</width>
+     <height>194</height>
+    </size>
+   </property>
    <property name="maximumSize">
     <size>
      <width>300</width>
-     <height>524287</height>
+     <height>200</height>
     </size>
    </property>
    <property name="windowTitle">
@@ -1777,6 +1825,12 @@
        </item>
        <item row="0" column="0">
         <widget class="QLabel" name="tiltpoint_label">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="text">
           <string>Set Tiltpoint :</string>
          </property>
@@ -1815,6 +1869,12 @@
        </item>
        <item row="0" column="1" alignment="Qt::AlignHCenter">
         <widget class="QLabel" name="tilt_x_label">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="text">
           <string>X</string>
          </property>
@@ -2054,6 +2114,12 @@
        </item>
        <item row="0" column="2" alignment="Qt::AlignHCenter">
         <widget class="QLabel" name="tilt_y_label">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="text">
           <string>Y</string>
          </property>
@@ -2061,6 +2127,12 @@
        </item>
        <item row="0" column="3" alignment="Qt::AlignHCenter">
         <widget class="QLabel" name="tilt_z_label">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="text">
           <string>Z</string>
          </property>
