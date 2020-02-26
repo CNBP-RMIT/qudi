@@ -309,14 +309,32 @@ class CounterLogic(GenericLogic):
                 header = header + ',Signal{0} (counts/s)'.format(i)
 
             data = {header: self._data_to_save}
-            filepath = self._save_logic.get_path_for_module(module_name='Counter')
+            # --------------------------------------------------------------
+            # filepath = self._save_logic.get_path_for_module(module_name='Counter')
+            if not self._save_logic.save_into_default_directory:
+                filepath, filename = self._save_logic.get_path_from_dialog()
+            else:
+                filepath = self._save_logic.get_path_for_module(modeule_name='Counter')
+
+            # if save_figure:
+            #     fig = self.draw_figure(data=np.array(self._data_to_save))
+            # else:
+            #     fig = None
+            # self._save_logic.save_data(data, filepath=filepath, parameters=parameters,
+            #                            filelabel=filelabel, plotfig=fig, delimiter='\t')
 
             if save_figure:
                 fig = self.draw_figure(data=np.array(self._data_to_save))
             else:
                 fig = None
-            self._save_logic.save_data(data, filepath=filepath, parameters=parameters,
-                                       filelabel=filelabel, plotfig=fig, delimiter='\t')
+            self._save_logic.save_data(data,
+                                       filepath=filepath,
+                                       filename=filename,
+                                       parameters=parameters,
+                                       filelabel=filelabel,
+                                       plotfig=fig,
+                                       delimiter='\t')
+            # ---------------------------------------------------------------------
             self.log.info('Counter Trace saved to:\n{0}'.format(filepath))
 
         self.sigSavingStatusChanged.emit(self._saving)
@@ -534,10 +552,22 @@ class CounterLogic(GenericLogic):
         parameters['Oversampling (Samples)'] = self._counting_samples
         parameters['Smooth Window Length (# of events)'] = self._smooth_window_length
 
-        filepath = self._save_logic.get_path_for_module(module_name='Counter')
-        self._save_logic.save_data(data, filepath=filepath, parameters=parameters,
-                                   filelabel=filelabel, delimiter='\t')
+        # --------------------------------------------------------------
+        # filepath = self._save_logic.get_path_for_module(module_name='Counter')
+        if not self._save_logic.save_into_default_directory:
+            filepath, filename = self._save_logic.get_path_from_dialog()
+        else:
+            filepath = self._save_logic.get_path_for_module(modeule_name='Counter')
 
+        # self._save_logic.save_data(data, filepath=filepath, parameters=parameters,
+        #                            filelabel=filelabel, delimiter='\t')
+        self._save_logic.save_data(data,
+                                   filepath=filepath,
+                                   filename=filename,
+                                   parameters=parameters,
+                                   filelabel=filelabel,
+                                   delimiter='\t')
+        # ---------------------------------------------------------------------
         self.log.debug('Current Counter Trace saved to: {0}'.format(filepath))
         return data, filepath, parameters, filelabel
 

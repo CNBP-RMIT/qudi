@@ -28,6 +28,9 @@ import numpy as np
 import os
 import sys
 import time
+# --------------------------------------------------------
+from qtpy.QtWidgets import QFileDialog
+# --------------------------------------------------------
 
 from collections import OrderedDict
 from core.configoption import ConfigOption
@@ -124,6 +127,9 @@ class SaveLogic(GenericLogic):
     _win_data_dir = ConfigOption('win_data_directory', 'C:/Data/')
     _unix_data_dir = ConfigOption('unix_data_directory', 'Data')
     log_into_daily_directory = ConfigOption('log_into_daily_directory', False, missing='warn')
+    # -------------------------------------------------------------------------------
+    save_into_default_directory = ConfigOption('save_into_default_directory', False)
+    # -------------------------------------------------------------------------------
 
     # Matplotlib style definition for saving plots
     mpl_qd_style = {
@@ -637,38 +643,59 @@ class SaveLogic(GenericLogic):
             os.makedirs(dir_path)
         return dir_path
 
-    def get_additional_parameters(self):
-        """ Method that return the additional parameters dictionary securely """
-        return self._additional_parameters.copy()
+    # -------------------------------------------------------------------
+    # def get_additional_parameters(self):
+    #     """ Method that return the additional parameters dictionary securely """
+    #     return self._additional_parameters.copy()
+    #
+    # def update_additional_parameters(self, *args, **kwargs):
+    #     """
+    #     Method to update one or multiple additional parameters
+    #
+    #     @param dict args: Optional single positional argument holding parameters in a dict to
+    #                       update additional parameters from.
+    #     @param kwargs: Optional keyword arguments to be added to additional parameters
+    #     """
+    #     if len(args) == 0:
+    #         param_dict = kwargs
+    #     elif len(args) == 1 and isinstance(args[0], dict):
+    #         param_dict = args[0]
+    #         param_dict.update(kwargs)
+    #     else:
+    #         raise TypeError('"update_additional_parameters" takes exactly 0 or 1 positional '
+    #                         'argument of type dict.')
+    #
+    #     for key in param_dict.keys():
+    #         param_dict[key] = netobtain(param_dict[key])
+    #     self._additional_parameters.update(param_dict)
+    #     return
+    #
+    # def remove_additional_parameter(self, key):
+    #     """
+    #     remove parameter from additional parameters
+    #
+    #     @param str key: The additional parameters key/name to delete
+    #     """
+    #     self._additional_parameters.pop(key, None)
+    #     return
 
-    def update_additional_parameters(self, *args, **kwargs):
+    def get_path_from_dialog(self):
         """
-        Method to update one or multiple additional parameters
+        Methods that open the os saving dialog box and return user-defined filename and path.
 
-        @param dict args: Optional single positional argument holding parameters in a dict to
-                          update additional parameters from.
-        @param kwargs: Optional keyword arguments to be added to additional parameters
+        @return string, string: user-defined saving folder and user-defined saving name
         """
-        if len(args) == 0:
-            param_dict = kwargs
-        elif len(args) == 1 and isinstance(args[0], dict):
-            param_dict = args[0]
-            param_dict.update(kwargs)
+        new_filepath = QFileDialog.getSaveFileName(
+            None, str("Save data"), self.data_dir,
+            str("Data files (*.dat)"))
+        if not new_filepath[0]:
+            self.log.warning('Saving aborted because no file was '
+                             'specified. Please save your data again.')
+            return -1
         else:
-            raise TypeError('"update_additional_parameters" takes exactly 0 or 1 positional '
-                            'argument of type dict.')
-
-        for key in param_dict.keys():
-            param_dict[key] = netobtain(param_dict[key])
-        self._additional_parameters.update(param_dict)
-        return
-
-    def remove_additional_parameter(self, key):
-        """
-        remove parameter from additional parameters
-
-        @param str key: The additional parameters key/name to delete
-        """
-        self._additional_parameters.pop(key, None)
-        return
-
+            (filepath, filename) = os.path.split(new_filepath[0])
+            # Remember the saving folder as the default one next time
+            # something else is saved
+            self.data_dir = filepath
+        return filepath, filename
+    # --------------------------------------------------------------------

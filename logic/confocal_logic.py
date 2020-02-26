@@ -27,6 +27,10 @@ import datetime
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+# -------------------------------------------------
+from io import BytesIO
+# -------------------------------------------------
+
 
 from logic.generic_logic import GenericLogic
 from core.util.mutex import Mutex
@@ -845,7 +849,8 @@ class ConfocalLogic(GenericLogic):
             self.stop_scanning()
             self.signal_scan_lines_next.emit()
 
-    def save_xy_data(self, colorscale_range=None, percentile_range=None):
+    # def save_xy_data(self, colorscale_range=None, percentile_range=None):
+    def save_xy_data(self, colorscale_range=None, percentile_range=None, save_raw_data=True):
         """ Save the current confocal xy data to file.
 
         Two files are created.  The first is the imagedata, which has a text-matrix of count values
@@ -859,7 +864,16 @@ class ConfocalLogic(GenericLogic):
 
         @param: list percentile_range (optional) The percentile range [min, max] of the color scale
         """
-        filepath = self._save_logic.get_path_for_module('Confocal')
+
+        #---------------------------------------------------------------
+        # filepath = self._save_logic.get_path_for_module('Confocal')
+        if not self._save_logic.save_into_default_directory:
+            filepath, filename = self._save_logic.get_path_from_dialog()
+        else:
+            filepath = self._save_logic.get_path_for_module('Confocal')
+            filename = None
+        #---------------------------------------------------------------
+
         timestamp = datetime.datetime.now()
         # Prepare the metadata parameters (common to both saved files):
         parameters = OrderedDict()
@@ -905,14 +919,21 @@ class ConfocalLogic(GenericLogic):
                 'of entries where the Signal is in counts/s:'] = self.xy_image[:, :, 3 + n]
 
             filelabel = 'confocal_xy_image_{0}'.format(ch.replace('/', ''))
+            # --------------------------------------------------------------------
+            if len(self.get_scanner_count_channels()) > 1 and filename is not None:
+                filenameCh = filename[:-4] + '_ch{0}.dat'.format(ch.replace('/', ''))
+            else:
+                filenameCh = filename
             self._save_logic.save_data(image_data,
                                        filepath=filepath,
+                                       filename=filenameCh,
                                        timestamp=timestamp,
                                        parameters=parameters,
                                        filelabel=filelabel,
                                        fmt='%.6e',
                                        delimiter='\t',
                                        plotfig=figs[ch])
+            # --------------------------------------------------------------------
 
         # prepare the full raw data in an OrderedDict:
         data = OrderedDict()
@@ -923,21 +944,34 @@ class ConfocalLogic(GenericLogic):
         for n, ch in enumerate(self.get_scanner_count_channels()):
             data['count rate {0} (Hz)'.format(ch)] = self.xy_image[:, :, 3 + n].flatten()
 
-        # Save the raw data to file
+        # --------------------------------------------------
+        # Save the raw data to file altogether with the pixel confocal map
         filelabel = 'confocal_xy_data'
-        self._save_logic.save_data(data,
-                                   filepath=filepath,
-                                   timestamp=timestamp,
-                                   parameters=parameters,
-                                   filelabel=filelabel,
-                                   fmt='%.6e',
-                                   delimiter='\t')
-
+        if save_raw_data:
+            filename = filename[:-4] + '_raw.dat'
+            fig, ax = plt.subplots()
+            ax.imshow(self.xy_image[:, :, 3],
+                      cmap=plt.get_cmap('inferno'),
+                      interpolation='none')
+            ax.axis('off')
+            ax.xaxis.set_major_locator(plt.NullLocator())
+            ax.yaxis.set_major_locator(plt.NullLocator())
+            self._save_logic.save_data(data,
+                                       filepath=filepath,
+                                       filename=filename,
+                                       timestamp=timestamp,
+                                       parameters=parameters,
+                                       filelabel=filelabel,
+                                       fmt='%.6e',
+                                       delimiter='\t',
+                                       plotfig=fig)
+        # --------------------------------------------------
         self.log.debug('Confocal Image saved.')
         self.signal_xy_data_saved.emit()
         return
 
-    def save_depth_data(self, colorscale_range=None, percentile_range=None):
+    # def save_depth_data(self, colorscale_range=None, percentile_range=None):
+    def save_depth_data(self, colorscale_range=None, percentile_range=None, save_raw_data=True):
         """ Save the current confocal depth data to file.
 
         Two files are created.  The first is the imagedata, which has a text-matrix of count values
@@ -945,7 +979,16 @@ class ConfocalLogic(GenericLogic):
 
         The second file saves the full raw data with x, y, z, and counts at every pixel.
         """
-        filepath = self._save_logic.get_path_for_module('Confocal')
+
+        #---------------------------------------------------------------
+        # filepath = self._save_logic.get_path_for_module('Confocal')
+        if not self._save_logic.save_into_default_directory:
+            filepath, filename = self._save_logic.get_path_from_dialog()
+        else:
+            filepath = self._save_logic.get_path_for_module('Confocal')
+            filename = None
+        #---------------------------------------------------------------
+
         timestamp = datetime.datetime.now()
         # Prepare the metadata parameters (common to both saved files):
         parameters = OrderedDict()
@@ -998,15 +1041,21 @@ class ConfocalLogic(GenericLogic):
                 'of entries where the Signal is in counts/s:'] = self.depth_image[:, :, 3 + n]
 
             filelabel = 'confocal_depth_image_{0}'.format(ch.replace('/', ''))
+            # ---------------------------------------------------------------------
+            if len(self.get_scanner_count_channels()) > 1 and filename is not None:
+                filenameCh = filename[:-4] + '_ch{0}.dat'.format(ch.replace('/', ''))
+            else:
+                filenameCh = filename
             self._save_logic.save_data(image_data,
                                        filepath=filepath,
+                                       filename=filenameCh,
                                        timestamp=timestamp,
                                        parameters=parameters,
                                        filelabel=filelabel,
                                        fmt='%.6e',
                                        delimiter='\t',
                                        plotfig=figs[ch])
-
+            # ---------------------------------------------------------------------
         # prepare the full raw data in an OrderedDict:
         data = OrderedDict()
         data['x position (m)'] = self.depth_image[:, :, 0].flatten()
@@ -1018,13 +1067,26 @@ class ConfocalLogic(GenericLogic):
 
         # Save the raw data to file
         filelabel = 'confocal_depth_data'
-        self._save_logic.save_data(data,
-                                   filepath=filepath,
-                                   timestamp=timestamp,
-                                   parameters=parameters,
-                                   filelabel=filelabel,
-                                   fmt='%.6e',
-                                   delimiter='\t')
+        # ---------------------------------------------------------------------
+        if save_raw_data:
+            filename = filename[:-4] + '_raw.dat'
+            fig, ax = plt.subplots()
+            ax.imshow(self.depth_image[:, :, 3],
+                      cmap=plt.get_cmap('inferno'),
+                      interpolation='none')
+            ax.axis('off')
+            ax.xaxis.set_major_locator(plt.NullLocator())
+            ax.yaxis.set_major_locator(plt.NullLocator())
+            self._save_logic.save_data(data,
+                                       filepath=filepath,
+                                       filename=filename,
+                                       timestamp=timestamp,
+                                       parameters=parameters,
+                                       filelabel=filelabel,
+                                       fmt='%.6e',
+                                       delimiter='\t',
+                                       plotfig=fig)
+        # ---------------------------------------------------------------------
 
         self.log.debug('Confocal Image saved.')
         self.signal_depth_data_saved.emit()
