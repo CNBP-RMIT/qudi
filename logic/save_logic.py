@@ -643,42 +643,43 @@ class SaveLogic(GenericLogic):
             os.makedirs(dir_path)
         return dir_path
 
-    # -------------------------------------------------------------------
-    # def get_additional_parameters(self):
-    #     """ Method that return the additional parameters dictionary securely """
-    #     return self._additional_parameters.copy()
-    #
-    # def update_additional_parameters(self, *args, **kwargs):
-    #     """
-    #     Method to update one or multiple additional parameters
-    #
-    #     @param dict args: Optional single positional argument holding parameters in a dict to
-    #                       update additional parameters from.
-    #     @param kwargs: Optional keyword arguments to be added to additional parameters
-    #     """
-    #     if len(args) == 0:
-    #         param_dict = kwargs
-    #     elif len(args) == 1 and isinstance(args[0], dict):
-    #         param_dict = args[0]
-    #         param_dict.update(kwargs)
-    #     else:
-    #         raise TypeError('"update_additional_parameters" takes exactly 0 or 1 positional '
-    #                         'argument of type dict.')
-    #
-    #     for key in param_dict.keys():
-    #         param_dict[key] = netobtain(param_dict[key])
-    #     self._additional_parameters.update(param_dict)
-    #     return
-    #
-    # def remove_additional_parameter(self, key):
-    #     """
-    #     remove parameter from additional parameters
-    #
-    #     @param str key: The additional parameters key/name to delete
-    #     """
-    #     self._additional_parameters.pop(key, None)
-    #     return
 
+    def get_additional_parameters(self):
+        """ Method that return the additional parameters dictionary securely """
+        return self._additional_parameters.copy()
+
+    def update_additional_parameters(self, *args, **kwargs):
+        """
+        Method to update one or multiple additional parameters
+
+        @param dict args: Optional single positional argument holding parameters in a dict to
+                          update additional parameters from.
+        @param kwargs: Optional keyword arguments to be added to additional parameters
+        """
+        if len(args) == 0:
+            param_dict = kwargs
+        elif len(args) == 1 and isinstance(args[0], dict):
+            param_dict = args[0]
+            param_dict.update(kwargs)
+        else:
+            raise TypeError('"update_additional_parameters" takes exactly 0 or 1 positional '
+                            'argument of type dict.')
+
+        for key in param_dict.keys():
+            param_dict[key] = netobtain(param_dict[key])
+        self._additional_parameters.update(param_dict)
+        return
+
+    def remove_additional_parameter(self, key):
+        """
+        remove parameter from additional parameters
+
+        @param str key: The additional parameters key/name to delete
+        """
+        self._additional_parameters.pop(key, None)
+        return
+
+  # -------------------------------------------------------------------
     def get_path_from_dialog(self):
         """
         Methods that open the os saving dialog box and return user-defined filename and path.
