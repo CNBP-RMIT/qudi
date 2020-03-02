@@ -389,12 +389,7 @@
    </widget>
   </widget>
   <widget class="QDockWidget" name="scan_control_dockWidget">
-   <property name="maximumSize">
-    <size>
-     <width>524287</width>
-     <height>170</height>
-    </size>
-   </property>
+
    <property name="windowTitle">
     <string>Scan parameters</string>
    </property>
@@ -472,10 +467,16 @@
        </property>
        <property name="maximumSize">
         <size>
-         <width>70</width>
+         <width>90</width>
          <height>16777215</height>
         </size>
        </property>
+	   	   <property name="minimumSize">
+		<size>
+			<width>90</width>
+			<height>10</height>
+		</size>
+		</property>
        <property name="mouseTracking">
         <bool>true</bool>
        </property>
@@ -525,7 +526,7 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
+         <width>90</width>
          <height>0</height>
         </size>
        </property>
@@ -593,7 +594,7 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
+         <width>90</width>
          <height>0</height>
         </size>
        </property>
@@ -675,7 +676,7 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
+         <width>90</width>
          <height>0</height>
         </size>
        </property>
@@ -727,7 +728,7 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
+         <width>90</width>
          <height>0</height>
         </size>
        </property>
@@ -813,7 +814,7 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
+         <width>90</width>
          <height>0</height>
         </size>
        </property>
@@ -898,7 +899,13 @@
          <height>16777215</height>
         </size>
        </property>
-       <property name="mouseTracking">
+       	   <property name="minimumSize">
+		<size>
+			<width>90</width>
+			<height>10</height>
+		</size>
+		</property>
+	   <property name="mouseTracking">
         <bool>true</bool>
        </property>
        <property name="focusPolicy">
@@ -947,7 +954,7 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
+         <width>90</width>
          <height>0</height>
         </size>
        </property>
@@ -999,7 +1006,7 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
+         <width>90</width>
          <height>0</height>
         </size>
        </property>
@@ -1064,7 +1071,7 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
+         <width>90</width>
          <height>0</height>
         </size>
        </property>
@@ -1116,7 +1123,7 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
+         <width>90</width>
          <height>0</height>
         </size>
        </property>
