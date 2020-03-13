@@ -28,7 +28,7 @@
      <x>0</x>
      <y>0</y>
      <width>1261</width>
-     <height>21</height>
+     <height>27</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -1900,6 +1900,23 @@
     </layout>
    </widget>
   </widget>
+  <widget class="QToolBar" name="map_storage_ToolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonTextUnderIcon</enum>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="action_store_map"/>
+   <addaction name="action_restore_map"/>
+   <addaction name="action_clear_map"/>
+  </widget>
   <action name="actionSave_XY_Scan">
    <property name="icon">
     <iconset>
@@ -2310,6 +2327,50 @@
    </property>
    <property name="toolTip">
     <string>Blink correction</string>
+   </property>
+  </action>
+  <action name="action_store_map">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../artwork/icons/qudiTheme/source_svg/store_map.svg</normaloff>../../artwork/icons/qudiTheme/source_svg/store_map.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Store map</string>
+   </property>
+   <property name="toolTip">
+    <string>Store the current xy map for future reference</string>
+   </property>
+  </action>
+  <action name="action_restore_map">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normalon>../../artwork/icons/qudiTheme/source_svg/restore_map.svg</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Restore map</string>
+   </property>
+   <property name="toolTip">
+    <string>Restore previously stored map</string>
+   </property>
+  </action>
+  <action name="action_clear_map">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normalon>../../artwork/icons/qudiTheme/source_svg/clear_map.svg</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Clear map</string>
+   </property>
+   <property name="toolTip">
+    <string>Clear the stored map from memory</string>
    </property>
   </action>
  </widget>
