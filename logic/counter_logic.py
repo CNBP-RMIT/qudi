@@ -24,6 +24,7 @@ from collections import OrderedDict
 import numpy as np
 import time
 import matplotlib.pyplot as plt
+import os
 
 from core.connector import Connector
 from core.statusvariable import StatusVar
@@ -309,12 +310,20 @@ class CounterLogic(GenericLogic):
                 header = header + ',Signal{0} (counts/s)'.format(i)
 
             data = {header: self._data_to_save}
-            # --------------------------------------------------------------
-            # filepath = self._save_logic.get_path_for_module(module_name='Counter')
+
             if not self._save_logic.save_into_default_directory:
-                filepath, filename = self._save_logic.get_path_from_dialog()
+                filepath, userstr = self._save_logic.get_path_from_dialog()
+                if userstr is not None:
+                    # This is ugly, but it works for now.
+                    # An empty txt file is saved only for checking the duplicated user input string.
+                    with open(os.path.join(filepath, userstr), 'ab') as file:
+                        np.savetxt(file, np.array([]))
+                    filename = userstr
+                else:
+                    return
             else:
-                filepath = self._save_logic.get_path_for_module(modeule_name='Counter')
+                filepath = self._save_logic.get_path_for_module(module_name='Counter')
+                filename = None
 
             # if save_figure:
             #     fig = self.draw_figure(data=np.array(self._data_to_save))
@@ -334,7 +343,7 @@ class CounterLogic(GenericLogic):
                                        filelabel=filelabel,
                                        plotfig=fig,
                                        delimiter='\t')
-            # ---------------------------------------------------------------------
+
             self.log.info('Counter Trace saved to:\n{0}'.format(filepath))
 
         self.sigSavingStatusChanged.emit(self._saving)
@@ -552,12 +561,15 @@ class CounterLogic(GenericLogic):
         parameters['Oversampling (Samples)'] = self._counting_samples
         parameters['Smooth Window Length (# of events)'] = self._smooth_window_length
 
-        # --------------------------------------------------------------
-        # filepath = self._save_logic.get_path_for_module(module_name='Counter')
         if not self._save_logic.save_into_default_directory:
-            filepath, filename = self._save_logic.get_path_from_dialog()
+            filepath, userstr = self._save_logic.get_path_from_dialog()
+            if userstr is not None:
+                filename = userstr
+            else:
+                return
         else:
-            filepath = self._save_logic.get_path_for_module(modeule_name='Counter')
+            filepath = self._save_logic.get_path_for_module(module_name='Counter')
+            filename = None
 
         # self._save_logic.save_data(data, filepath=filepath, parameters=parameters,
         #                            filelabel=filelabel, delimiter='\t')
@@ -567,7 +579,6 @@ class CounterLogic(GenericLogic):
                                    parameters=parameters,
                                    filelabel=filelabel,
                                    delimiter='\t')
-        # ---------------------------------------------------------------------
         self.log.debug('Current Counter Trace saved to: {0}'.format(filepath))
         return data, filepath, parameters, filelabel
 

@@ -28,9 +28,7 @@ import numpy as np
 import os
 import sys
 import time
-# --------------------------------------------------------
 from qtpy.QtWidgets import QFileDialog
-# --------------------------------------------------------
 
 from collections import OrderedDict
 from core.configoption import ConfigOption
@@ -127,9 +125,7 @@ class SaveLogic(GenericLogic):
     _win_data_dir = ConfigOption('win_data_directory', 'C:/Data/')
     _unix_data_dir = ConfigOption('unix_data_directory', 'Data')
     log_into_daily_directory = ConfigOption('log_into_daily_directory', False, missing='warn')
-    # -------------------------------------------------------------------------------
     save_into_default_directory = ConfigOption('save_into_default_directory', False)
-    # -------------------------------------------------------------------------------
 
     # Matplotlib style definition for saving plots
     mpl_qd_style = {
@@ -406,7 +402,12 @@ class SaveLogic(GenericLogic):
 
         # determine proper unique filename to save if none has been passed
         if filename is None:
-            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel + '.dat')
+            filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel)
+        else:
+            filename = filename + '_' + filelabel
+
+        filename_raw = filename + '_raw.dat'
+        filename_params = filename + '_params.dat'
 
         # Check format specifier.
         if not isinstance(fmt, str) and len(fmt) != len(data):
@@ -482,24 +483,23 @@ class SaveLogic(GenericLogic):
             else:
                 identifier_str = list(data)[0]
             header += list(data)[0]
-            self.save_array_as_text(data=data[identifier_str], filename=filename, filepath=filepath,
+            self.save_array_as_text(data=data[identifier_str], filename=filename_raw, filepath=filepath,
                                     fmt=fmt, header=header, delimiter=delimiter, comments='#',
                                     append=False)
         # write npz file and save parameters in textfile
         elif filetype == 'npz':
             header += str(list(data.keys()))[1:-1]
-            np.savez_compressed(filepath + '/' + filename[:-4], **data)
-            self.save_array_as_text(data=[], filename=filename[:-4]+'_params.dat', filepath=filepath,
+            np.savez_compressed(filepath + '/' + filename, **data)
+            self.save_array_as_text(data=[], filename=filename_params, filepath=filepath,
                                     fmt=fmt, header=header, delimiter=delimiter, comments='#',
                                     append=False)
         else:
             self.log.error('Only saving of data as textfile and npz-file is implemented. Filetype "{0}" is not '
                            'supported yet. Saving as textfile.'.format(filetype))
-            self.save_array_as_text(data=data[identifier_str], filename=filename, filepath=filepath,
+            self.save_array_as_text(data=data[identifier_str], filename=filename_raw, filepath=filepath,
                                     fmt=fmt, header=header, delimiter=delimiter, comments='#',
                                     append=False)
 
-        #--------------------------------------------------------------------------------------------
         # Save thumbnail figure of plot
         if plotfig is not None:
             # create Metadata
@@ -517,7 +517,7 @@ class SaveLogic(GenericLogic):
                 metadata['ModDate'] = time
 
             # determine the PDF-Filename
-            fig_fname_vector = os.path.join(filepath, filename)[:-4] + '_fig.pdf'
+            fig_fname_vector = os.path.join(filepath, filename) + '.pdf'
 
             # Create the PdfPages object to which we will save the pages:
             # The with statement makes sure that the PdfPages object is closed properly at
@@ -531,7 +531,7 @@ class SaveLogic(GenericLogic):
                     pdf_metadata[x] = metadata[x]
 
             # determine the PNG-Filename and save the plain PNG
-            fig_fname_image = os.path.join(filepath, filename)[:-4] + '_fig.png'
+            fig_fname_image = os.path.join(filepath, filename) + '.png'
             plotfig.savefig(fig_fname_image, bbox_inches='tight', pad_inches=0.05)
 
             # Use Pillow (an fork for PIL) to attach metadata to the PNG
@@ -553,10 +553,14 @@ class SaveLogic(GenericLogic):
             # save the picture again, this time including the metadata
             png_image.save(fig_fname_image, "png", pnginfo=png_metadata)
 
+            # Determine the TIFF-Filename and save the plain TIFF
+            fig_tif = os.path.join(filepath, filename) + '.tiff'
+            # Save as TIFF
+            png_image.save(fig_tif)
+
             # close matplotlib figure
             plt.close(plotfig)
             self.log.debug('Time needed to save data: {0:.2f}s'.format(time.time()-start_time))
-            #----------------------------------------------------------------------------------
 
     def save_array_as_text(self, data, filename, filepath='', fmt='%.15e', header='',
                            delimiter='\t', comments='#', append=False):
@@ -643,7 +647,6 @@ class SaveLogic(GenericLogic):
             os.makedirs(dir_path)
         return dir_path
 
-
     def get_additional_parameters(self):
         """ Method that return the additional parameters dictionary securely """
         return self._additional_parameters.copy()
@@ -679,24 +682,25 @@ class SaveLogic(GenericLogic):
         self._additional_parameters.pop(key, None)
         return
 
-  # -------------------------------------------------------------------
     def get_path_from_dialog(self):
         """
         Methods that open the os saving dialog box and return user-defined filename and path.
 
         @return string, string: user-defined saving folder and user-defined saving name
         """
-        new_filepath = QFileDialog.getSaveFileName(
-            None, str("Save data"), self.data_dir,
-            str("Data files (*.dat)"))
-        if not new_filepath[0]:
-            self.log.warning('Saving aborted because no file was '
-                             'specified. Please save your data again.')
-            return -1
-        else:
-            (filepath, filename) = os.path.split(new_filepath[0])
+        dlg = QFileDialog()
+        new_filepath = dlg.getSaveFileName(
+            parent=None,
+            caption=str("Save data"),
+            directory=self.data_dir,
+            options=QFileDialog.DontUseNativeDialog)
+        if new_filepath[0] != '':
+            (filepath, userstr) = os.path.split(new_filepath[0])
             # Remember the saving folder as the default one next time
             # something else is saved
             self.data_dir = filepath
-        return filepath, filename
-    # --------------------------------------------------------------------
+        else:
+            filepath = self.data_dir
+            userstr = None
+            self.log.warning('Saving is canceled by user.')
+        return filepath, userstr
