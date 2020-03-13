@@ -277,6 +277,7 @@ class ConfocalLogic(GenericLogic):
     signal_tilt_correction_update = QtCore.Signal()
     signal_draw_figure_completed = QtCore.Signal()
     signal_position_changed = QtCore.Signal()
+    signal_storage_changed = QtCore.Signal()
 
     _signal_save_xy = QtCore.Signal(object, object)
     _signal_save_depth = QtCore.Signal(object, object)
@@ -299,6 +300,7 @@ class ConfocalLogic(GenericLogic):
         self.depth_scan_dir_is_xz = True
         self.depth_img_is_xz = True
         self.permanent_scan = False
+        self.reference_map = None
 
     def on_activate(self):
         """ Initialisation performed during activation of the module.
@@ -1269,3 +1271,29 @@ class ConfocalLogic(GenericLogic):
             self._change_position('history')
             self.signal_change_position.emit('history')
             self.signal_history_event.emit()
+
+    def store_reference_map(self):
+        """ Store the current confocal image parameters for future usage
+        """
+        current_map = ConfocalHistoryEntry(self)
+        current_map.snapshot(self)
+        self.reference_map = current_map
+        self.signal_storage_changed.emit()
+
+    def restore_reference_map(self):
+        """ Restore the confocal image parameters stored previously
+        """
+        self.reference_map.restore(self)
+        self.signal_xy_image_updated.emit()
+        self.signal_depth_image_updated.emit()
+        self.signal_tilt_correction_update.emit()
+        self.signal_tilt_correction_active.emit(self._scanning_device.tiltcorrection)
+        self._change_position('reference')
+        self.signal_change_position.emit('reference')
+        self.signal_history_event.emit()
+
+    def clear_reference_map(self):
+        """ Clear the storage image parameters from memory
+        """
+        self.reference_map = None
+        self.signal_storage_changed.emit()
