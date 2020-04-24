@@ -221,8 +221,8 @@ class AppWatchdog(QtCore.QObject):
             print('Stopping threads...')
             manager.tm.quitAllThreads()
             QtCore.QCoreApplication.instance().processEvents()
-            logger.info('Qudi is closed!  Ciao.')
-            print('\n  Qudi is closed!  Ciao.')
+            logger.info('Will I dream? Daisy... daaaaaiiisssssyyyy...')
+            print('\n  Will I dream? Daisy... daaaaaiiisssssyyyy...')
         QtCore.QCoreApplication.instance().quit()
 
 
