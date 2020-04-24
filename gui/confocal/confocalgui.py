@@ -545,6 +545,12 @@ class ConfocalGui(GUIBase):
         # Blink correction
         self._mw.actionBlink_correction_view.triggered.connect(self.blink_correction_clicked)
 
+        # Connect the storing map actions to the corresponding logic functions
+        self._mw.action_store_map.triggered.connect(self._scanning_logic.store_reference_map)
+        self._mw.action_restore_map.triggered.connect(self._scanning_logic.restore_reference_map)
+        self._mw.action_clear_map.triggered.connect(self._scanning_logic.clear_reference_map)
+        self._scanning_logic.signal_storage_changed.connect(self.update_map_storage_icons)
+
         ###################################################################
         #               Icons for the scan actions                        #
         ###################################################################
@@ -1943,3 +1949,13 @@ class ConfocalGui(GUIBase):
     def logic_finished_save(self):
         """ Hides modal dialog when save process done """
         self._save_dialog.hide()
+
+    def update_map_storage_icons(self):
+        """ Activate/deactivate the map storage buttons based on the existance of the stored data"""
+        if self._scanning_logic.reference_map is None:
+            self._mw.action_store_map.setEnabled(True)
+            self._mw.action_restore_map.setEnabled(False)
+            self._mw.action_clear_map.setEnabled(False)
+        else:
+            self._mw.action_restore_map.setEnabled(True)
+            self._mw.action_clear_map.setEnabled(True)
