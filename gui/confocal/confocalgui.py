@@ -91,6 +91,21 @@ class OptimizerSettingDialog(QtWidgets.QDialog):
         super(OptimizerSettingDialog, self).__init__()
         uic.loadUi(ui_file, self)
 
+class SaveDialog(QtWidgets.QDialog):
+    """ Dialog to provide feedback and block GUI while saving """
+    def __init__(self, parent, title="Please wait", text="Saving..."):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setWindowModality(QtCore.Qt.WindowModal)
+        self.setAttribute(QtCore.Qt.WA_ShowWithoutActivating)
+
+        # Dialog layout
+        self.text = QtWidgets.QLabel("<font size='16'>" + text + "</font>")
+        self.hbox = QtWidgets.QHBoxLayout()
+        self.hbox.addSpacerItem(QtWidgets.QSpacerItem(50, 0))
+        self.hbox.addWidget(self.text)
+        self.hbox.addSpacerItem(QtWidgets.QSpacerItem(50, 0))
+        self.setLayout(self.hbox)
 
 class ConfocalGui(GUIBase):
     """ Main Confocal Class for xy and depth scans.
@@ -138,6 +153,8 @@ class ConfocalGui(GUIBase):
         self.initMainUI()      # initialize the main GUI
         self.initSettingsUI()  # initialize the settings GUI
         self.initOptimizerSettingsUI()  # initialize the optimizer settings GUI
+
+        self._save_dialog = SaveDialog(self._mw)
 
     def initMainUI(self):
         """ Definition, configuration and initialisation of the confocal GUI.
@@ -350,16 +367,27 @@ class ConfocalGui(GUIBase):
         self._mw.z_SliderWidget.sliderMoved.connect(self.update_from_slider_z)
 
         # Take the default values from logic:
-        self._mw.xy_res_InputWidget.setValue(self._scanning_logic.xy_resolution)
+        self._mw.x_res_InputWidget.setValue(self._scanning_logic.xy_resolution)
+        self._mw.y_res_InputWidget.setValue(self._scanning_logic.xy_resolution)
         self._mw.z_res_InputWidget.setValue(self._scanning_logic.z_resolution)
+        self._mw.x_res_length_InputWidget.setValue(
+            (self._scanning_logic.image_x_range[1] - self._scanning_logic.image_x_range[0]) / self._scanning_logic.xy_resolution)
+        self._mw.y_res_length_InputWidget.setValue(
+            (self._scanning_logic.image_y_range[1] - self._scanning_logic.image_y_range[0]) / self._scanning_logic.xy_resolution)
+        self._mw.z_res_length_InputWidget.setValue(
+            (self._scanning_logic.image_z_range[1] - self._scanning_logic.image_z_range[0]) / self._scanning_logic.z_resolution)
 
         # Update the inputed/displayed numbers if the cursor has left the field:
         self._mw.x_current_InputWidget.editingFinished.connect(self.update_from_input_x)
         self._mw.y_current_InputWidget.editingFinished.connect(self.update_from_input_y)
         self._mw.z_current_InputWidget.editingFinished.connect(self.update_from_input_z)
 
-        self._mw.xy_res_InputWidget.editingFinished.connect(self.change_xy_resolution)
+        self._mw.x_res_InputWidget.editingFinished.connect(self.change_xy_resolution)
         self._mw.z_res_InputWidget.editingFinished.connect(self.change_z_resolution)
+        self._mw.x_res_length_InputWidget.editingFinished.connect(self.change_xy_resolution)
+        self._mw.z_res_length_InputWidget.editingFinished.connect(self.change_z_resolution)
+        self._mw.pixel_res_RadioButton.clicked.connect(self.update_res_input)
+        self._mw.length_res_RadioButton.clicked.connect(self.update_res_input)
 
         self._mw.x_min_InputWidget.editingFinished.connect(self.change_x_image_range)
         self._mw.x_max_InputWidget.editingFinished.connect(self.change_x_image_range)
@@ -484,6 +512,9 @@ class ConfocalGui(GUIBase):
         # Connect other signals from the logic with an update of the gui
 
         self._scanning_logic.signal_start_scanning.connect(self.logic_started_scanning)
+        self._scanning_logic.signal_save_started.connect(self.logic_started_save)
+        self._scanning_logic.signal_xy_data_saved.connect(self.logic_finished_save)
+        self._scanning_logic.signal_depth_data_saved.connect(self.logic_finished_save)
         self._scanning_logic.signal_continue_scanning.connect(self.logic_continued_scanning)
         self._optimizer_logic.sigRefocusStarted.connect(self.logic_started_refocus)
         # self._scanning_logic.signal_stop_scanning.connect()
@@ -770,8 +801,12 @@ class ConfocalGui(GUIBase):
         self._mw.z_min_InputWidget.setEnabled(False)
         self._mw.z_max_InputWidget.setEnabled(False)
 
-        self._mw.xy_res_InputWidget.setEnabled(False)
+        self._mw.pixel_res_RadioButton.setEnabled(False)
+        self._mw.length_res_RadioButton.setEnabled(False)
+        self._mw.x_res_InputWidget.setEnabled(False)
         self._mw.z_res_InputWidget.setEnabled(False)
+        self._mw.x_res_length_InputWidget.setEnabled(False)
+        self._mw.z_res_length_InputWidget.setEnabled(False)
 
         # Set the zoom button if it was pressed to unpressed and disable it
         self._mw.action_zoom.setChecked(False)
@@ -800,8 +835,9 @@ class ConfocalGui(GUIBase):
         self._mw.z_min_InputWidget.setEnabled(True)
         self._mw.z_max_InputWidget.setEnabled(True)
 
-        self._mw.xy_res_InputWidget.setEnabled(True)
-        self._mw.z_res_InputWidget.setEnabled(True)
+        self.update_res_input()
+        self._mw.pixel_res_RadioButton.setEnabled(True)
+        self._mw.length_res_RadioButton.setEnabled(True)
 
         self._mw.action_zoom.setEnabled(True)
 
@@ -1264,18 +1300,50 @@ class ConfocalGui(GUIBase):
     def change_xy_resolution(self):
         """ Update the xy resolution in the logic according to the GUI.
         """
-        self._scanning_logic.xy_resolution = self._mw.xy_res_InputWidget.value()
+        x_range = self._scanning_logic.image_x_range[1] - self._scanning_logic.image_x_range[0]
+        y_range = self._scanning_logic.image_y_range[1] - self._scanning_logic.image_y_range[0]
+        if self._mw.pixel_res_RadioButton.isChecked():
+            res_length = x_range / self._mw.x_res_InputWidget.value()
+            self._mw.x_res_length_InputWidget.setValue(res_length)
+        else:
+            res_pixel = np.around(x_range / self._mw.x_res_length_InputWidget.value()).astype(int)
+            self._mw.x_res_InputWidget.setValue(res_pixel)
+            # Correct the resolution displayed to match the integer number of pixels
+            self._mw.x_res_length_InputWidget.setValue(x_range / res_pixel)
+        # Update pixel and length for the y values
+        self._mw.y_res_InputWidget.setValue((y_range / x_range) * self._mw.x_res_InputWidget.value())
+        self._mw.y_res_length_InputWidget.setValue(self._mw.x_res_length_InputWidget.value())
+        self._scanning_logic.xy_resolution = self._mw.x_res_InputWidget.value()
 
     def change_z_resolution(self):
         """ Update the z resolution in the logic according to the GUI.
         """
+        z_range = self._scanning_logic.image_z_range[1] - self._scanning_logic.image_z_range[0]
+        if self._mw.pixel_res_RadioButton.isChecked():
+            res_length = z_range / self._mw.z_res_InputWidget.value()
+            self._mw.z_res_length_InputWidget.setValue(res_length)
+        else:
+            res_pixel = np.around(z_range / self._mw.z_res_length_InputWidget.value()).astype(int)
+            self._mw.z_res_InputWidget.setValue(res_pixel)
+            # Correct the resolution displayed to match the integer number of pixels
+            self._mw.z_res_length_InputWidget.setValue(z_range / res_pixel)
         self._scanning_logic.z_resolution = self._mw.z_res_InputWidget.value()
+
+    def update_res_input(self):
+        """ Update which input box is enabled according to the radio buttons.
+        """
+        using_pixels = self._mw.pixel_res_RadioButton.isChecked()
+        self._mw.x_res_InputWidget.setEnabled(using_pixels)
+        self._mw.z_res_InputWidget.setEnabled(using_pixels)
+        self._mw.x_res_length_InputWidget.setEnabled(not using_pixels)
+        self._mw.z_res_length_InputWidget.setEnabled(not using_pixels)
 
     def change_x_image_range(self):
         """ Adjust the image range for x in the logic. """
         self._scanning_logic.image_x_range = [
             self._mw.x_min_InputWidget.value(),
             self._mw.x_max_InputWidget.value()]
+        self.change_xy_resolution()
 
     def change_y_image_range(self):
         """ Adjust the image range for y in the logic.
@@ -1283,12 +1351,14 @@ class ConfocalGui(GUIBase):
         self._scanning_logic.image_y_range = [
             self._mw.y_min_InputWidget.value(),
             self._mw.y_max_InputWidget.value()]
+        self.change_xy_resolution()
 
     def change_z_image_range(self):
         """ Adjust the image range for z in the logic. """
         self._scanning_logic.image_z_range = [
             self._mw.z_min_InputWidget.value(),
             self._mw.z_max_InputWidget.value()]
+        self.change_xy_resolution()
 
     def update_tilt_correction(self):
         """ Update all tilt points from the scanner logic. """
@@ -1557,6 +1627,8 @@ class ConfocalGui(GUIBase):
 
     def save_xy_scan_data(self):
         """ Run the save routine from the logic to save the xy confocal data."""
+        self._save_dialog.show()
+
         cb_range = self.get_xy_cb_range()
 
         # Percentile range is None, unless the percentile scaling is selected in GUI.
@@ -1566,7 +1638,7 @@ class ConfocalGui(GUIBase):
             high_centile = self._mw.xy_cb_high_percentile_DoubleSpinBox.value()
             pcile_range = [low_centile, high_centile]
 
-        self._scanning_logic.save_xy_data(colorscale_range=cb_range, percentile_range=pcile_range)
+        self._scanning_logic.save_xy_data(colorscale_range=cb_range, percentile_range=pcile_range, block=False)
 
         # TODO: find a way to produce raw image in savelogic.  For now it is saved here.
         filepath = self._save_logic.get_path_for_module(module_name='Confocal')
@@ -1587,6 +1659,8 @@ class ConfocalGui(GUIBase):
 
     def save_depth_scan_data(self):
         """ Run the save routine from the logic to save the xy confocal pic."""
+        self._save_dialog.show()
+
         cb_range = self.get_depth_cb_range()
 
         # Percentile range is None, unless the percentile scaling is selected in GUI.
@@ -1596,7 +1670,7 @@ class ConfocalGui(GUIBase):
             high_centile = self._mw.depth_cb_high_percentile_DoubleSpinBox.value()
             pcile_range = [low_centile, high_centile]
 
-        self._scanning_logic.save_depth_data(colorscale_range=cb_range, percentile_range=pcile_range)
+        self._scanning_logic.save_depth_data(colorscale_range=cb_range, percentile_range=pcile_range, block=False)
 
         # TODO: find a way to produce raw image in savelogic.  For now it is saved here.
         filepath = self._save_logic.get_path_for_module(module_name='Confocal')
@@ -1862,3 +1936,10 @@ class ConfocalGui(GUIBase):
         if tag == 'logic':
             self.disable_scan_actions()
 
+    def logic_started_save(self):
+        """ Displays modal dialog when save process starts """
+        self._save_dialog.show()
+
+    def logic_finished_save(self):
+        """ Hides modal dialog when save process done """
+        self._save_dialog.hide()
