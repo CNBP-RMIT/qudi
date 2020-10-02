@@ -23,7 +23,9 @@ from qtpy import QtCore
 import numpy as np
 import time
 
-from core.module import Base, Connector, ConfigOption
+from core.module import Base
+from core.connector import Connector
+from core.configoption import ConfigOption
 from interface.confocal_scanner_interface import ConfocalScannerInterface
 
 
@@ -39,12 +41,15 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
 
     """
 
+<<<<<<< HEAD
     sigOverstepCounter = QtCore.Signal()
     sigReleaseCounter = QtCore.Signal()
 
     _modclass = 'ConfocalScannerDummy'
     _modtype = 'hardware'
 
+=======
+>>>>>>> 046e22760d928c3287ecc3806adbd36706a855b4
     # connectors
     fitlogic = Connector(interface='FitLogic')
 
@@ -431,11 +436,9 @@ class ConfocalScannerDummy(Base, ConfocalScannerInterface):
         if not isinstance( x_data,(frozenset, list, set, tuple, np.ndarray)):
             self.log.error('Given range of axis is no array type.')
 
-
         parameters=[amplitude,x_zero,sigma,offset]
         for var in parameters:
-            if not isinstance(var,(float,int)):
-                print('error',var)
+            if not isinstance(var, (float, int)):
                 self.log.error('Given range of parameter is no float or int.')
         gaussian = amplitude*np.exp(-(x_data-x_zero)**2/(2*sigma**2))+offset
         return gaussian

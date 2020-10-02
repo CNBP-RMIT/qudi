@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MainWindow</class>
+<class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
    <rect>
@@ -27,8 +27,13 @@
     <rect>
      <x>0</x>
      <y>0</y>
+<<<<<<< HEAD
      <width>1161</width>
      <height>23</height>
+=======
+     <width>1261</width>
+     <height>27</height>
+>>>>>>> 046e22760d928c3287ecc3806adbd36706a855b4
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -66,6 +71,7 @@
     <addaction name="actionOptimizer_view"/>
     <addaction name="actionScan_line_view"/>
     <addaction name="actionTilt_correction_view"/>
+    <addaction name="actionBlink_correction_view"/>
     <addaction name="separator"/>
     <addaction name="menuToolbars"/>
     <addaction name="separator"/>
@@ -79,7 +85,6 @@
    <addaction name="menuView"/>
    <addaction name="menu_Options"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="depth_scan_dockWidget">
    <property name="windowTitle">
     <string>Depth scan</string>
@@ -90,7 +95,7 @@
    <widget class="QWidget" name="dockWidgetContents">
     <layout class="QHBoxLayout" name="horizontalLayout_5">
      <item>
-      <widget class="PlotWidgetModified" name="depth_ViewWidget">
+      <widget class="ScanPlotWidget" name="depth_ViewWidget">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>1</horstretch>
@@ -293,7 +298,7 @@
         <enum>QLayout::SetMaximumSize</enum>
        </property>
        <item>
-        <widget class="PlotWidget" name="xy_refocus_ViewWidget_2">
+        <widget class="ScanPlotWidget" name="xy_refocus_ViewWidget_2">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
            <horstretch>1</horstretch>
@@ -390,10 +395,16 @@
    </widget>
   </widget>
   <widget class="QDockWidget" name="scan_control_dockWidget">
+   <property name="minimumSize">
+    <size>
+     <width>654</width>
+     <height>169</height>
+    </size>
+   </property>
    <property name="maximumSize">
     <size>
      <width>524287</width>
-     <height>170</height>
+     <height>210</height>
     </size>
    </property>
    <property name="windowTitle">
@@ -406,6 +417,15 @@
     <layout class="QGridLayout" name="gridLayout_3">
      <item row="0" column="3">
       <widget class="Line" name="line">
+<<<<<<< HEAD
+=======
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+>>>>>>> 046e22760d928c3287ecc3806adbd36706a855b4
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
@@ -458,16 +478,22 @@
       </widget>
      </item>
      <item row="1" column="1">
-      <widget class="QSpinBox" name="xy_res_InputWidget">
+      <widget class="QSpinBox" name="x_res_InputWidget">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <property name="minimumSize">
+        <size>
+         <width>70</width>
+         <height>20</height>
+        </size>
+       </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>70</width>
          <height>16777215</height>
         </size>
        </property>
@@ -481,7 +507,7 @@
         <bool>true</bool>
        </property>
        <property name="toolTip">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600;&quot;&gt;XY-Resolution&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600;&quot;&gt;X-Resolution in piexls&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -510,6 +536,7 @@
        </property>
       </widget>
      </item>
+<<<<<<< HEAD
      <item row="1" column="4">
       <widget class="ScienDSpinBox" name="x_min_InputWidget">
        <property name="sizePolicy">
@@ -565,6 +592,8 @@
        </property>
       </widget>
      </item>
+=======
+>>>>>>> 046e22760d928c3287ecc3806adbd36706a855b4
      <item row="1" column="5">
       <widget class="ScienDSpinBox" name="x_max_InputWidget">
        <property name="sizePolicy">
@@ -575,13 +604,13 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
-         <height>0</height>
+         <width>80</width>
+         <height>20</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>90</width>
          <height>16777215</height>
         </size>
        </property>
@@ -643,13 +672,13 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
-         <height>0</height>
+         <width>80</width>
+         <height>20</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>90</width>
          <height>16777215</height>
         </size>
        </property>
@@ -725,13 +754,13 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
-         <height>0</height>
+         <width>80</width>
+         <height>20</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>90</width>
          <height>16777215</height>
         </size>
        </property>
@@ -777,13 +806,13 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
-         <height>0</height>
+         <width>80</width>
+         <height>20</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>90</width>
          <height>16777215</height>
         </size>
        </property>
@@ -863,13 +892,13 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
-         <height>0</height>
+         <width>80</width>
+         <height>20</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>90</width>
          <height>16777215</height>
         </size>
        </property>
@@ -942,9 +971,15 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <property name="minimumSize">
+        <size>
+         <width>70</width>
+         <height>20</height>
+        </size>
+       </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>70</width>
          <height>16777215</height>
         </size>
        </property>
@@ -958,7 +993,7 @@
         <bool>true</bool>
        </property>
        <property name="toolTip">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600;&quot;&gt;Z-Resolution&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600;&quot;&gt;Z-Resolution in piexls&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -997,13 +1032,13 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
-         <height>0</height>
+         <width>80</width>
+         <height>20</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>90</width>
          <height>16777215</height>
         </size>
        </property>
@@ -1049,13 +1084,13 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
-         <height>0</height>
+         <width>80</width>
+         <height>20</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>90</width>
          <height>16777215</height>
         </size>
        </property>
@@ -1114,13 +1149,13 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
-         <height>0</height>
+         <width>80</width>
+         <height>20</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>90</width>
          <height>16777215</height>
         </size>
        </property>
@@ -1156,6 +1191,7 @@
        </property>
       </widget>
      </item>
+<<<<<<< HEAD
      <item row="4" column="6">
       <spacer name="verticalSpacer_2">
        <property name="orientation">
@@ -1239,6 +1275,10 @@
      </item>
      <item row="1" column="2">
       <widget class="ScienDSpinBox" name="xy_res_um_InputWidget">
+=======
+     <item row="1" column="4">
+      <widget class="ScienDSpinBox" name="x_min_InputWidget">
+>>>>>>> 046e22760d928c3287ecc3806adbd36706a855b4
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -1247,13 +1287,13 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>70</width>
-         <height>0</height>
+         <width>80</width>
+         <height>20</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>50</width>
+         <width>90</width>
          <height>16777215</height>
         </size>
        </property>
@@ -1461,6 +1501,256 @@
        </property>
       </widget>
      </item>
+     <item row="2" column="1">
+      <widget class="QSpinBox" name="y_res_InputWidget">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>70</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="mouseTracking">
+        <bool>true</bool>
+       </property>
+       <property name="acceptDrops">
+        <bool>true</bool>
+       </property>
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600;&quot;&gt;Y-Resolution in piexls&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::NoButtons</enum>
+       </property>
+       <property name="accelerated">
+        <bool>true</bool>
+       </property>
+       <property name="minimum">
+        <number>2</number>
+       </property>
+       <property name="maximum">
+        <number>10000</number>
+       </property>
+       <property name="value">
+        <number>100</number>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="ScienDSpinBox" name="y_res_length_InputWidget">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>80</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>90</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="mouseTracking">
+        <bool>true</bool>
+       </property>
+       <property name="acceptDrops">
+        <bool>true</bool>
+       </property>
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600;&quot;&gt;XY-Resolution in length&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::NoButtons</enum>
+       </property>
+       <property name="accelerated">
+        <bool>true</bool>
+       </property>
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="minimum">
+        <double>0.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="value">
+        <double>1.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="ScienDSpinBox" name="z_res_length_InputWidget">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>80</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>90</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="mouseTracking">
+        <bool>true</bool>
+       </property>
+       <property name="acceptDrops">
+        <bool>true</bool>
+       </property>
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600;&quot;&gt;Z-Resolution in length&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::NoButtons</enum>
+       </property>
+       <property name="accelerated">
+        <bool>true</bool>
+       </property>
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="minimum">
+        <double>0.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="value">
+        <double>1.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1" colspan="2">
+      <widget class="QLabel" name="resolutionLabel">
+       <property name="text">
+        <string>Resolution</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QRadioButton" name="pixel_res_RadioButton">
+       <property name="text">
+        <string>pixels</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="2">
+      <widget class="QRadioButton" name="length_res_RadioButton">
+       <property name="text">
+        <string>size</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="ScienDSpinBox" name="x_res_length_InputWidget">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>80</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>90</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="mouseTracking">
+        <bool>true</bool>
+       </property>
+       <property name="acceptDrops">
+        <bool>true</bool>
+       </property>
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600;&quot;&gt;XY-Resolution in length&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::NoButtons</enum>
+       </property>
+       <property name="accelerated">
+        <bool>true</bool>
+       </property>
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="minimum">
+        <double>0.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="value">
+        <double>1.000000000000000</double>
+       </property>
+      </widget>
+     </item>
     </layout>
    </widget>
   </widget>
@@ -1476,7 +1766,7 @@
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="1,0">
        <item>
-        <widget class="PlotWidgetModified" name="xy_ViewWidget">
+        <widget class="ScanPlotWidget" name="xy_ViewWidget">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
            <horstretch>0</horstretch>
@@ -2149,6 +2439,23 @@
     </layout>
    </widget>
   </widget>
+  <widget class="QToolBar" name="map_storage_ToolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonTextUnderIcon</enum>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="action_store_map"/>
+   <addaction name="action_restore_map"/>
+   <addaction name="action_clear_map"/>
+  </widget>
   <action name="actionSave_XY_Scan">
    <property name="icon">
     <iconset>
@@ -2559,26 +2866,81 @@
     <string>Shift+C</string>
    </property>
   </action>
+  <action name="actionBlink_correction_view">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>&amp;Blink correction</string>
+   </property>
+   <property name="toolTip">
+    <string>Blink correction</string>
+   </property>
+  </action>
+  <action name="action_store_map">
+   <property name="icon">
+    <iconset>
+     <normaloff>../../artwork/icons/qudiTheme/source_svg/store_map.svg</normaloff>../../artwork/icons/qudiTheme/source_svg/store_map.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Store map</string>
+   </property>
+   <property name="toolTip">
+    <string>Store the current xy map for future reference</string>
+   </property>
+  </action>
+  <action name="action_restore_map">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normalon>../../artwork/icons/qudiTheme/source_svg/restore_map.svg</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Restore map</string>
+   </property>
+   <property name="toolTip">
+    <string>Restore previously stored map</string>
+   </property>
+  </action>
+  <action name="action_clear_map">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normalon>../../artwork/icons/qudiTheme/source_svg/clear_map.svg</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Clear map</string>
+   </property>
+   <property name="toolTip">
+    <string>Clear the stored map from memory</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>ScienDSpinBox</class>
-   <extends>QDoubleSpinBox</extends>
-   <header>qtwidgets.scientific_spinbox.h</header>
-  </customwidget>
   <customwidget>
    <class>PlotWidget</class>
    <extends>QGraphicsView</extends>
    <header>pyqtgraph</header>
   </customwidget>
   <customwidget>
-   <class>PlotWidgetModified</class>
+   <class>ScienDSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header>qtwidgets.scientific_spinbox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ScanPlotWidget</class>
    <extends>QGraphicsView</extends>
-   <header>qtwidgets.plotwidget_modified.h</header>
+   <header>qtwidgets.scan_plotwidget.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>
-  <tabstop>xy_res_InputWidget</tabstop>
+  <tabstop>x_res_InputWidget</tabstop>
   <tabstop>z_res_InputWidget</tabstop>
   <tabstop>x_min_InputWidget</tabstop>
   <tabstop>x_max_InputWidget</tabstop>

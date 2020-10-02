@@ -25,7 +25,8 @@ import numpy as np
 import random
 import time
 
-from core.module import Base, ConfigOption
+from core.module import Base
+from core.configoption import ConfigOption
 from interface.slow_counter_interface import SlowCounterInterface
 from interface.slow_counter_interface import SlowCounterConstraints
 from interface.slow_counter_interface import CountingMode
@@ -47,12 +48,15 @@ class SlowCounterDummy(Base, SlowCounterInterface):
 
     """
 
+<<<<<<< HEAD
     sigOverstepCounter = QtCore.Signal()
     sigReleaseCounter = QtCore.Signal()
 
     _modclass = 'SlowCounterDummy'
     _modtype = 'hardware'
 
+=======
+>>>>>>> 046e22760d928c3287ecc3806adbd36706a855b4
     # config
     _clock_frequency = ConfigOption('clock_frequency', 100, missing='warn')
     _samples_number = ConfigOption('samples_number', 10, missing='warn')

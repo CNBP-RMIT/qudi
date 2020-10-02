@@ -21,7 +21,7 @@ top-level directory of this distribution and at <https://github.com/Ulm-IQO/qudi
 import copy
 from time import sleep
 
-from core.module import Connector
+from core.connector import Connector
 from logic.generic_logic import GenericLogic
 from interface.confocal_scanner_interface import ConfocalScannerInterface
 
@@ -30,10 +30,13 @@ class ScannerTiltInterfuse(GenericLogic, ConfocalScannerInterface):
     """ This interfuse produces a Z correction corresponding to a tilted surface.
     """
 
+<<<<<<< HEAD
 
     _modclass = 'ScannerTiltInterfuse'
     _modtype = 'interfuse'
 
+=======
+>>>>>>> 046e22760d928c3287ecc3806adbd36706a855b4
     confocalscanner1 = Connector(interface='ConfocalScannerInterface')
 
     def __init__(self, **kwargs):

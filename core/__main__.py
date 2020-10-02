@@ -221,8 +221,8 @@ class AppWatchdog(QtCore.QObject):
             print('Stopping threads...')
             manager.tm.quitAllThreads()
             QtCore.QCoreApplication.instance().processEvents()
-            logger.info('Qudi is closed!  Ciao.')
-            print('\n  Qudi is closed!  Ciao.')
+            logger.info('Will I dream? Daisy... daaaaaiiisssssyyyy...')
+            print('\n  Will I dream? Daisy... daaaaaiiisssssyyyy...')
         QtCore.QCoreApplication.instance().quit()
 
 
@@ -268,13 +268,13 @@ if interactive:
         if os.path.exists(historyPath):
             readline.read_history_file(historyPath)
 
-    def save_history(historyPath=historyPath):
+    def save_history(new_historyPath=historyPath):
         try:
             import readline
         except ImportError:
             print("Import Error in __main__: Module readline not available.")
         else:
-            readline.write_history_file(historyPath)
+            readline.write_history_file(new_historyPath)
     atexit.register(save_history)
 else:
     # non-interactive, start application in different modes

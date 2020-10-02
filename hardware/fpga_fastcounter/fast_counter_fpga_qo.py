@@ -26,7 +26,8 @@ import os
 import time
 
 from interface.fast_counter_interface import FastCounterInterface
-from core.module import Base, ConfigOption
+from core.module import Base
+from core.configoption import ConfigOption
 from core.util.modules import get_main_dir
 import okfrontpanel as ok
 from core.util.mutex import Mutex
@@ -62,9 +63,6 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
         #threshV_ch8: 0.5   # optional, threshold voltage for detection
 
     """
-
-    _modclass = 'FastCounterFPGAQO'
-    _modtype = 'hardware'
 
     _serial = ConfigOption('fpgacounter_serial', missing='error')
     # 'No parameter "fpgacounter_serial" specified in the config! Set the '
@@ -423,6 +421,8 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
         care of in this hardware class. A possible overflow of the histogram
         bins must be caught here and taken care of.
         """
+        info_dict = {'elapsed_sweeps': None,
+                     'elapsed_time': None}  # TODO : implement that according to hardware capabilities
         with self.threadlock:
             # check for error status in FPGA timetagger
             error_messages = self._get_error_messages()
@@ -430,7 +430,7 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
                 for err_message in error_messages:
                     self.log.error(err_message)
                 self.stop_measure()
-                return self.count_data
+                return self.count_data, info_dict
 
             # check for running status
             status_messages = self._get_status_messages()
@@ -439,7 +439,7 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
                                'trace of the device. An empty numpy array[{0},{1}] filled with '
                                'zeros will be returned.'.format(self._number_of_gates,
                                                                 self._gate_length_bins))
-                return self.count_data
+                return self.count_data, info_dict
 
             # initialize the read buffer for the USB transfer.
             # one timebin of the data to read is 32 bit wide and the data is transferred in bytes.
@@ -453,7 +453,7 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
             if read_err_code != buffersize:
                 self.log.error('Data transfer from FPGA via USB failed with error code {0}. '
                                'Returning old count data.'.format(read_err_code))
-                return self.count_data
+                return self.count_data, info_dict
 
             # Encode bytes into 32bit unsigned integers
             buffer_encode = np.frombuffer(data_buffer, dtype='uint32')
@@ -476,7 +476,7 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
             # bin the data according to the specified bin width
             #if self._binwidth != 1:
             #    buffer_encode = buffer_encode[:(buffer_encode.size // self._binwidth) * self._binwidth].reshape(-1, self._binwidth).sum(axis=1)
-            return self.count_data
+            return self.count_data, info_dict
 
     def stop_measure(self):
         """ Stop the fast counter. """
@@ -577,3 +577,4 @@ class FastCounterFPGAQO(Base, FastCounterInterface):
         -1 = error state
         """
         return self.statusvar
+
