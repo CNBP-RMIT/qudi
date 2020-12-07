@@ -272,12 +272,17 @@ class ConfocalLogic(GenericLogic):
     signal_xy_image_updated = QtCore.Signal()
     signal_depth_image_updated = QtCore.Signal()
     signal_change_position = QtCore.Signal(str)
+    signal_save_started = QtCore.Signal()
     signal_xy_data_saved = QtCore.Signal()
     signal_depth_data_saved = QtCore.Signal()
     signal_tilt_correction_active = QtCore.Signal(bool)
     signal_tilt_correction_update = QtCore.Signal()
     signal_draw_figure_completed = QtCore.Signal()
     signal_position_changed = QtCore.Signal()
+    signal_storage_changed = QtCore.Signal()
+
+    _signal_save_xy = QtCore.Signal(object, object)
+    _signal_save_depth = QtCore.Signal(object, object)
 
     sigImageXYInitialized = QtCore.Signal()
     sigImageDepthInitialized = QtCore.Signal()
@@ -297,6 +302,7 @@ class ConfocalLogic(GenericLogic):
         self.depth_scan_dir_is_xz = True
         self.depth_img_is_xz = True
         self.permanent_scan = False
+        self.reference_map = None
 
     def on_activate(self):
         """ Initialisation performed during activation of the module.
@@ -341,6 +347,9 @@ class ConfocalLogic(GenericLogic):
         self.signal_scan_lines_next.connect(self._scan_line, QtCore.Qt.QueuedConnection)
         self.signal_start_scanning.connect(self.start_scanner, QtCore.Qt.QueuedConnection)
         self.signal_continue_scanning.connect(self.continue_scanner, QtCore.Qt.QueuedConnection)
+
+        self._signal_save_xy.connect(self._save_xy_data, QtCore.Qt.QueuedConnection)
+        self._signal_save_depth.connect(self._save_depth_data, QtCore.Qt.QueuedConnection)
 
         self._change_position('activation')
 
@@ -847,7 +856,9 @@ class ConfocalLogic(GenericLogic):
             self.stop_scanning()
             self.signal_scan_lines_next.emit()
 
+
     def save_xy_data(self, colorscale_range=None, percentile_range=None, save_raw_data=False):
+
         """ Save the current confocal xy data to file.
 
         Two files are created.  The first is the imagedata, which has a text-matrix of count values
@@ -859,7 +870,18 @@ class ConfocalLogic(GenericLogic):
 
         @param: list colorscale_range (optional) The range [min, max] of the display colour scale (for the figure)
 
-        @param: list percentile_range (optional) The percentile range [min, max] of the color scale
+        @param: list percentile_range (optional) The percentile range [min, max] of the color scale 
+        
+        @param: bool block (optional) If False, return immediately; if True, block until save completes."""
+
+        if block:
+            self._save_xy_data(colorscale_range, percentile_range)
+        else:
+            self._signal_save_xy.emit(colorscale_range, percentile_range)
+
+    @QtCore.Slot(object, object)
+    def _save_xy_data(self, colorscale_range=None, percentile_range=None):
+        """ Execute save operation. Slot for _signal_save_xy.
         """
 
         if not self._save_logic.save_into_default_directory:
@@ -970,13 +992,16 @@ class ConfocalLogic(GenericLogic):
         self.signal_xy_data_saved.emit()
         return
 
+
     def save_depth_data(self, colorscale_range=None, percentile_range=None, save_raw_data=False):
+
         """ Save the current confocal depth data to file.
 
         Two files are created.  The first is the imagedata, which has a text-matrix of count values
         corresponding to the pixel matrix of the image.  Only count-values are saved here.
 
         The second file saves the full raw data with x, y, z, and counts at every pixel.
+
         """
 
         if not self._save_logic.save_into_default_directory:
@@ -993,6 +1018,7 @@ class ConfocalLogic(GenericLogic):
         else:
             filepath = self._save_logic.get_path_for_module('Confocal')
             filename = None
+
 
         timestamp = datetime.datetime.now()
         # Prepare the metadata parameters (common to both saved files):
@@ -1296,3 +1322,29 @@ class ConfocalLogic(GenericLogic):
             self._change_position('history')
             self.signal_change_position.emit('history')
             self.signal_history_event.emit()
+
+    def store_reference_map(self):
+        """ Store the current confocal image parameters for future usage
+        """
+        current_map = ConfocalHistoryEntry(self)
+        current_map.snapshot(self)
+        self.reference_map = current_map
+        self.signal_storage_changed.emit()
+
+    def restore_reference_map(self):
+        """ Restore the confocal image parameters stored previously
+        """
+        self.reference_map.restore(self)
+        self.signal_xy_image_updated.emit()
+        self.signal_depth_image_updated.emit()
+        self.signal_tilt_correction_update.emit()
+        self.signal_tilt_correction_active.emit(self._scanning_device.tiltcorrection)
+        self._change_position('reference')
+        self.signal_change_position.emit('reference')
+        self.signal_history_event.emit()
+
+    def clear_reference_map(self):
+        """ Clear the storage image parameters from memory
+        """
+        self.reference_map = None
+        self.signal_storage_changed.emit()
