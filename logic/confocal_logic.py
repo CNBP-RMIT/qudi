@@ -856,9 +856,7 @@ class ConfocalLogic(GenericLogic):
             self.stop_scanning()
             self.signal_scan_lines_next.emit()
 
-
-    def save_xy_data(self, colorscale_range=None, percentile_range=None, save_raw_data=False):
-
+    def save_xy_data(self, colorscale_range=None, percentile_range=None, block=True):
         """ Save the current confocal xy data to file.
 
         Two files are created.  The first is the imagedata, which has a text-matrix of count values
@@ -881,16 +879,14 @@ class ConfocalLogic(GenericLogic):
 
     @QtCore.Slot(object, object)
     def _save_xy_data(self, colorscale_range=None, percentile_range=None):
-        """ Execute save operation. Slot for _signal_save_xy.
-        """
-
+        """ Execute save operation. Slot for _signal_save_xy. """
+        # TODO: The dialog box rises Timer problems when non-blocking.
         if not self._save_logic.save_into_default_directory:
             filepath, userstr = self._save_logic.get_path_from_dialog()
             if userstr is not None:
                 # This is ugly, but it works for now.
                 # An empty txt file is saved only for checking the duplicated user input string.
-                with open(os.path.join(filepath, userstr), 'ab') as file:
-                    np.savetxt(file, np.array([]))
+                np.savetxt(os.path.join(filepath, userstr), np.array([]))
                 filename = userstr
             else:
                 return
@@ -898,6 +894,7 @@ class ConfocalLogic(GenericLogic):
             filepath = self._save_logic.get_path_for_module('Confocal')
             filename = None
 
+        self.signal_save_started.emit()
         timestamp = datetime.datetime.now()
         # Prepare the metadata parameters (common to both saved files):
         parameters = OrderedDict()
@@ -943,12 +940,11 @@ class ConfocalLogic(GenericLogic):
                 'of entries where the Signal is in counts/s:'] = self.xy_image[:, :, 3 + n]
 
             filelabel = 'confocal_xy_{0}'.format(ch.replace('/', ''))
-            #
-            # if len(self.get_scanner_count_channels()) > 1 and filename is not None:
-            #     filenameCh = filename + '_ch{0}'.format(ch.replace('/', ''))
-            # else:
-            #     filenameCh = filename
-            filenameCh = filename
+
+            if len(self.get_scanner_count_channels()) > 1 and filename is not None:
+                filenameCh = filename + '_{0}'.format(ch.replace('/', ''))
+            else:
+                filenameCh = filename
             self._save_logic.save_data(image_data,
                                        filepath=filepath,
                                        filename=filenameCh,
@@ -970,31 +966,29 @@ class ConfocalLogic(GenericLogic):
 
         # Save the raw data to file altogether with the pixel confocal map
         filelabel = 'confocal_xy_data'
-        if save_raw_data:
-            filename = filename
-            fig, ax = plt.subplots()
-            ax.imshow(self.xy_image[:, :, 3],
-                      cmap=plt.get_cmap('inferno'),
-                      interpolation='none')
-            ax.axis('off')
-            ax.xaxis.set_major_locator(plt.NullLocator())
-            ax.yaxis.set_major_locator(plt.NullLocator())
-            self._save_logic.save_data(data,
-                                       filepath=filepath,
-                                       filename=filename,
-                                       timestamp=timestamp,
-                                       parameters=parameters,
-                                       filelabel=filelabel,
-                                       fmt='%.6e',
-                                       delimiter='\t',
-                                       plotfig=fig)
+        # if save_raw_data:
+        #     filename = filename
+        #     fig, ax = plt.subplots()
+        #     ax.imshow(self.xy_image[:, :, 3],
+        #               cmap=plt.get_cmap('inferno'),
+        #               interpolation='none')
+        #     ax.axis('off')
+        #     ax.xaxis.set_major_locator(plt.NullLocator())
+        #     ax.yaxis.set_major_locator(plt.NullLocator())
+        #     self._save_logic.save_data(data,
+        #                                filepath=filepath,
+        #                                filename=filename,
+        #                                timestamp=timestamp,
+        #                                parameters=parameters,
+        #                                filelabel=filelabel,
+        #                                fmt='%.6e',
+        #                                delimiter='\t',
+        #                                plotfig=fig)
         self.log.debug('Confocal Image saved.')
         self.signal_xy_data_saved.emit()
         return
 
-    @QtCore.Slot(object, object)
-    def _save_depth_data(self, colorscale_range=None, percentile_range=None, save_raw_data=False):
-
+    def save_depth_data(self, colorscale_range=None, percentile_range=None, block=True):
         """ Save the current confocal depth data to file.
 
         Two files are created.  The first is the imagedata, which has a text-matrix of count values
@@ -1002,16 +996,27 @@ class ConfocalLogic(GenericLogic):
 
         The second file saves the full raw data with x, y, z, and counts at every pixel.
 
-        """
+        A figure is also saved.
 
+        @param: list colorscale_range (optional) The range [min, max] of the display colour scale (for the figure)
+
+        @param: list percentile_range (optional) The percentile range [min, max] of the color scale
+
+        @param: bool block (optional) If False, return immediately; if True, block until save completes."""
+        if block:
+            self._save_depth_data(colorscale_range, percentile_range)
+        else:
+            self._signal_save_depth.emit(colorscale_range, percentile_range)
+
+    @QtCore.Slot(object, object)
+    def _save_depth_data(self, colorscale_range=None, percentile_range=None):
+        """ Execute save operation. Slot for _signal_save_depth. """
         if not self._save_logic.save_into_default_directory:
             filepath, userstr = self._save_logic.get_path_from_dialog()
-            # Check if the user pressed Cancel button instead of input a string
             if userstr is not None:
                 # This is ugly, but it works for now.
                 # An empty txt file is saved only for checking the duplicated user input string.
-                with open(os.path.join(filepath, userstr), 'ab') as file:
-                    np.savetxt(file, np.array([]))
+                np.savetxt(os.path.join(filepath, userstr), np.array([]))
                 filename = userstr
             else:
                 return
@@ -1019,7 +1024,7 @@ class ConfocalLogic(GenericLogic):
             filepath = self._save_logic.get_path_for_module('Confocal')
             filename = None
 
-
+        self.signal_save_started.emit()
         timestamp = datetime.datetime.now()
         # Prepare the metadata parameters (common to both saved files):
         parameters = OrderedDict()
@@ -1072,11 +1077,10 @@ class ConfocalLogic(GenericLogic):
                 'of entries where the Signal is in counts/s:'] = self.depth_image[:, :, 3 + n]
 
             filelabel = 'confocal_depth_{0}'.format(ch.replace('/', ''))
-            # if len(self.get_scanner_count_channels()) > 1 and filename is not None:
-            #     filenameCh = filename + '_ch{0}'.format(ch.replace('/', ''))
-            # else:
-            #     filenameCh = filename
-            filenameCh = filename
+            if len(self.get_scanner_count_channels()) > 1 and filename is not None:
+                filenameCh = filename + '_{0}'.format(ch.replace('/', ''))
+            else:
+                filenameCh = filename
             self._save_logic.save_data(image_data,
                                        filepath=filepath,
                                        filename=filenameCh,
@@ -1095,26 +1099,26 @@ class ConfocalLogic(GenericLogic):
         for n, ch in enumerate(self.get_scanner_count_channels()):
             data['count rate {0} (Hz)'.format(ch)] = self.depth_image[:, :, 3 + n].flatten()
 
-        # Save the raw data to file
-        filelabel = 'confocal_depth_data'
-        if save_raw_data:
-            filename = filename
-            fig, ax = plt.subplots()
-            ax.imshow(self.depth_image[:, :, 3],
-                      cmap=plt.get_cmap('inferno'),
-                      interpolation='none')
-            ax.axis('off')
-            ax.xaxis.set_major_locator(plt.NullLocator())
-            ax.yaxis.set_major_locator(plt.NullLocator())
-            self._save_logic.save_data(data,
-                                       filepath=filepath,
-                                       filename=filename,
-                                       timestamp=timestamp,
-                                       parameters=parameters,
-                                       filelabel=filelabel,
-                                       fmt='%.6e',
-                                       delimiter='\t',
-                                       plotfig=fig)
+        # # Save the raw data to file
+        # filelabel = 'confocal_depth_data'
+        # if save_raw_data:
+        #     filename = filename
+        #     fig, ax = plt.subplots()
+        #     ax.imshow(self.depth_image[:, :, 3],
+        #               cmap=plt.get_cmap('inferno'),
+        #               interpolation='none')
+        #     ax.axis('off')
+        #     ax.xaxis.set_major_locator(plt.NullLocator())
+        #     ax.yaxis.set_major_locator(plt.NullLocator())
+        #     self._save_logic.save_data(data,
+        #                                filepath=filepath,
+        #                                filename=filename,
+        #                                timestamp=timestamp,
+        #                                parameters=parameters,
+        #                                filelabel=filelabel,
+        #                                fmt='%.6e',
+        #                                delimiter='\t',
+        #                                plotfig=fig)
         self.log.debug('Confocal Image saved.')
         self.signal_depth_data_saved.emit()
         return

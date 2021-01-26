@@ -316,21 +316,13 @@ class CounterLogic(GenericLogic):
                 if userstr is not None:
                     # This is ugly, but it works for now.
                     # An empty txt file is saved only for checking the duplicated user input string.
-                    with open(os.path.join(filepath, userstr), 'ab') as file:
-                        np.savetxt(file, np.array([]))
+                    np.savetxt(os.path.join(filepath, userstr), np.array([]))
                     filename = userstr
                 else:
                     return
             else:
                 filepath = self._save_logic.get_path_for_module(module_name='Counter')
                 filename = None
-
-            # if save_figure:
-            #     fig = self.draw_figure(data=np.array(self._data_to_save))
-            # else:
-            #     fig = None
-            # self._save_logic.save_data(data, filepath=filepath, parameters=parameters,
-            #                            filelabel=filelabel, plotfig=fig, delimiter='\t')
 
             if save_figure:
                 fig = self.draw_figure(data=np.array(self._data_to_save))
