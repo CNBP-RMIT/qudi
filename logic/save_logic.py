@@ -135,10 +135,9 @@ class SaveLogic(GenericLogic):
     _win_data_dir = ConfigOption('win_data_directory', 'C:/Data/')
     _unix_data_dir = ConfigOption('unix_data_directory', 'Data')
     log_into_daily_directory = ConfigOption('log_into_daily_directory', False, missing='warn')
-    save_into_default_directory = ConfigOption('save_into_default_directory', False)
+    save_into_default_directory = ConfigOption('save_into_default_directory', True)
     save_pdf = ConfigOption('save_pdf', False)
     save_png = ConfigOption('save_png', True)
-
 
     # Matplotlib style definition for saving plots
     mpl_qd_style = {
@@ -416,8 +415,8 @@ class SaveLogic(GenericLogic):
         # determine proper unique filename to save if none has been passed
         if filename is None:
             filename = timestamp.strftime('%Y%m%d-%H%M-%S' + '_' + filelabel)
-        else:
-            filename = filename + '_' + filelabel
+        # else:
+        #     filename = filename + '_' + filelabel
 
         filename_raw = filename + '_raw.dat'
         filename_params = filename + '_params.dat'
@@ -513,6 +512,7 @@ class SaveLogic(GenericLogic):
                                     fmt=fmt, header=header, delimiter=delimiter, comments='#',
                                     append=False)
 
+        #--------------------------------------------------------------------------------------------
         # Save thumbnail figure of plot
         if plotfig is not None:
             # create Metadata
@@ -531,7 +531,7 @@ class SaveLogic(GenericLogic):
             
             if self.save_pdf:
                 # determine the PDF-Filename
-                fig_fname_vector = os.path.join(filepath, filename)[:-4] + '_fig.pdf'
+                fig_fname_vector = os.path.join(filepath, filename) + '_fig.pdf'
 
                 # Create the PdfPages object to which we will save the pages:
                 # The with statement makes sure that the PdfPages object is closed properly at
@@ -546,7 +546,7 @@ class SaveLogic(GenericLogic):
 
             if self.save_png:
                 # determine the PNG-Filename and save the plain PNG
-                fig_fname_image = os.path.join(filepath, filename)[:-4] + '_fig.png'
+                fig_fname_image = os.path.join(filepath, filename) + '_fig.png'
                 plotfig.savefig(fig_fname_image, bbox_inches='tight', pad_inches=0.05)
 
                 # Use Pillow (an fork for PIL) to attach metadata to the PNG
@@ -556,29 +556,6 @@ class SaveLogic(GenericLogic):
                 # PIL can only handle Strings, so let's convert our times
                 metadata['CreationDate'] = metadata['CreationDate'].strftime('%Y%m%d-%H%M-%S')
                 metadata['ModDate'] = metadata['ModDate'].strftime('%Y%m%d-%H%M-%S')
-
-
-            # determine the PDF-Filename
-            fig_fname_vector = os.path.join(filepath, filename) + '.pdf'
-
-            # Create the PdfPages object to which we will save the pages:
-            # The with statement makes sure that the PdfPages object is closed properly at
-            # the end of the block, even if an Exception occurs.
-            with PdfPages(fig_fname_vector) as pdf:
-                pdf.savefig(plotfig, bbox_inches='tight', pad_inches=0.05)
-
-                # We can also set the file's metadata via the PdfPages object:
-                pdf_metadata = pdf.infodict()
-                for x in metadata:
-                    pdf_metadata[x] = metadata[x]
-
-            # determine the PNG-Filename and save the plain PNG
-            fig_fname_image = os.path.join(filepath, filename) + '.png'
-            plotfig.savefig(fig_fname_image, bbox_inches='tight', pad_inches=0.05)
-
-            # Use Pillow (an fork for PIL) to attach metadata to the PNG
-            png_image = Image.open(fig_fname_image)
-            png_metadata = PngImagePlugin.PngInfo()
 
                 for x in metadata:
                     # make sure every value of the metadata is a string
@@ -591,14 +568,15 @@ class SaveLogic(GenericLogic):
                 # save the picture again, this time including the metadata
                 png_image.save(fig_fname_image, "png", pnginfo=png_metadata)
 
-            # Determine the TIFF-Filename and save the plain TIFF
-            fig_tif = os.path.join(filepath, filename) + '.tiff'
-            # Save as TIFF
-            png_image.save(fig_tif)
+            # # Determine the TIFF-Filename and save the plain TIFF
+            # fig_tif = os.path.join(filepath, filename) + '.tiff'
+            # # Save as TIFF
+            # png_image.save(fig_tif)
 
             # close matplotlib figure
             plt.close(plotfig)
             self.log.debug('Time needed to save data: {0:.2f}s'.format(time.time()-start_time))
+            #----------------------------------------------------------------------------------
 
     def save_array_as_text(self, data, filename, filepath='', fmt='%.15e', header='',
                            delimiter='\t', comments='#', append=False):
