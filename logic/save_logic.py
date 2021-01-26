@@ -557,29 +557,6 @@ class SaveLogic(GenericLogic):
                 metadata['CreationDate'] = metadata['CreationDate'].strftime('%Y%m%d-%H%M-%S')
                 metadata['ModDate'] = metadata['ModDate'].strftime('%Y%m%d-%H%M-%S')
 
-
-            # determine the PDF-Filename
-            fig_fname_vector = os.path.join(filepath, filename) + '.pdf'
-
-            # Create the PdfPages object to which we will save the pages:
-            # The with statement makes sure that the PdfPages object is closed properly at
-            # the end of the block, even if an Exception occurs.
-            with PdfPages(fig_fname_vector) as pdf:
-                pdf.savefig(plotfig, bbox_inches='tight', pad_inches=0.05)
-
-                # We can also set the file's metadata via the PdfPages object:
-                pdf_metadata = pdf.infodict()
-                for x in metadata:
-                    pdf_metadata[x] = metadata[x]
-
-            # determine the PNG-Filename and save the plain PNG
-            fig_fname_image = os.path.join(filepath, filename) + '.png'
-            plotfig.savefig(fig_fname_image, bbox_inches='tight', pad_inches=0.05)
-
-            # Use Pillow (an fork for PIL) to attach metadata to the PNG
-            png_image = Image.open(fig_fname_image)
-            png_metadata = PngImagePlugin.PngInfo()
-
                 for x in metadata:
                     # make sure every value of the metadata is a string
                     if not isinstance(metadata[x], str):
